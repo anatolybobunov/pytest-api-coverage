@@ -17,6 +17,8 @@ Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requ
 pip install pytest-api-coverage
 ```
 
+See [docs/installation.md](docs/installation.md) for detailed installation instructions.
+
 ## Quick Start
 
 ```bash
@@ -34,170 +36,51 @@ pytest tests/ -n 4 --swagger=swagger.json
 
 1. **Interception**: The plugin monkeypatches `requests.Session.request` and `httpx.Client.request` to capture all HTTP requests made during test execution.
 
-2. **Collection**: Each request is recorded with:
-   - HTTP method and URL
-   - Request path
-   - Response status code
-   - Test name that made the request
+2. **Collection**: Each request is recorded with HTTP method, URL, path, response status code, and test name.
 
 3. **Matching**: After tests complete, recorded requests are matched against endpoints defined in the Swagger/OpenAPI specification using path pattern matching (e.g., `/users/{id}` matches `/users/123`).
 
-4. **Reporting**: Coverage reports are generated showing:
-   - Which endpoints were hit and how many times
-   - Response codes received
-   - Which tests covered each endpoint
-   - Overall coverage percentage
+4. **Reporting**: Coverage reports are generated showing which endpoints were hit, response codes received, and overall coverage percentage.
 
 ## CLI Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--swagger` | — | **Required.** Path to swagger.json/yaml file or URL to swagger spec |
-| `--coverage-output` | `coverage-output` | Output directory for coverage reports |
-| `--coverage-format` | `json,csv,html` | Report formats (comma-separated): `json`, `csv`, `html` |
-| `--coverage-base-url` | — | Filter coverage to single base URL (origin). Example: `https://api.example.com` |
-| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated). Example: `https://api.com,https://proxy.com` |
-| `--coverage-strip-prefix` | — | Additional path prefixes to strip (comma-separated). Example: `/v1,/api/v2` |
-| `--coverage-split-by-origin` | `false` | Generate separate coverage buckets per origin in reports |
+| `--swagger` | — | **Required.** Path to swagger.json/yaml file or URL |
+| `--coverage-output` | `coverage-output` | Output directory for reports |
+| `--coverage-format` | `json,csv,html` | Report formats (comma-separated) |
+| `--coverage-base-url` | — | Filter to single base URL |
+| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated) |
+| `--coverage-strip-prefix` | — | Path prefixes to strip (comma-separated) |
+| `--coverage-split-by-origin` | `false` | Separate coverage per origin |
 
-## Examples
+See [docs/usage.md](docs/usage.md) for detailed usage examples.
 
-### Basic Coverage
+## Documentation
 
-```bash
-pytest tests/ --swagger=api/swagger.yaml
-```
-
-Generates reports in `coverage-output/` directory.
-
-### Custom Output Directory
-
-```bash
-pytest tests/ --swagger=swagger.json --coverage-output=reports/api-coverage
-```
-
-### Only JSON Report
-
-```bash
-pytest tests/ --swagger=swagger.json --coverage-format=json
-```
-
-### Filter by Base URL
-
-When your tests hit multiple APIs but you only want coverage for one:
-
-```bash
-pytest tests/ --swagger=swagger.json --coverage-base-url=https://api.example.com
-```
-
-### Multiple Allowed Origins
-
-```bash
-pytest tests/ --swagger=swagger.json \
-  --coverage-include-base-url=https://api.example.com,https://staging.example.com
-```
-
-### Strip Path Prefixes
-
-If your API has versioned paths (`/v1/users`) but swagger defines them without prefix (`/users`):
-
-```bash
-pytest tests/ --swagger=swagger.json --coverage-strip-prefix=/v1,/api/v2
-```
-
-### Split Coverage by Origin
-
-Generate separate coverage statistics for each API origin:
-
-```bash
-pytest tests/ --swagger=swagger.json --coverage-split-by-origin
-```
-
-### Parallel Execution with pytest-xdist
-
-```bash
-pytest tests/ -n 4 --swagger=swagger.json
-```
-
-Coverage data is automatically collected from all workers and aggregated.
-
-## Report Formats
-
-### JSON (`coverage.json`)
-
-Machine-readable format with full details:
-
-```json
-{
-  "format_version": "1.0",
-  "generated_at": "2025-01-15T10:30:00+00:00",
-  "swagger_source": "api/swagger.yaml",
-  "summary": {
-    "total_endpoints": 20,
-    "covered_endpoints": 15,
-    "coverage_percentage": 75.0,
-    "total_requests": 150
-  },
-  "endpoints": [...]
-}
-```
-
-### CSV (`coverage.csv`)
-
-Spreadsheet-friendly format with columns:
-- Path, Hit Count, Method, Method Count, Response Codes, Covered
-
-### HTML (`coverage.html`)
-
-Visual report with:
-- Coverage percentage bar
-- Summary statistics
-- Color-coded endpoint table (green=covered, gray=once, red=not covered)
-- Response code breakdown
-
-## Terminal Output
-
-After test execution, a summary is printed:
-
-```
-========================= API Coverage Summary =========================
-Endpoints: 15/20 covered (75.0%)
-Total HTTP requests: 150
-
-Uncovered endpoints (5):
-  - DELETE /users/{id}
-  - PATCH /users/{id}
-  - POST /admin/reset
-  ...
-```
+- [Installation Guide](docs/installation.md)
+- [Usage Guide](docs/usage.md)
+- [Architecture](docs/architecture.md)
 
 ## Development
 
-### Install with dev dependencies
-
 ```bash
+# Install with dev dependencies
 uv sync --group dev
-```
 
-### Run tests
-
-```bash
+# Run tests
 uv run pytest tests/ -v
-```
 
-### Lint and format
-
-```bash
+# Lint and format
 uv run ruff check src/ tests/
 uv run ruff format src/ tests/
-```
 
-### Type checking
-
-```bash
+# Type checking
 uv run mypy src/
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details.
