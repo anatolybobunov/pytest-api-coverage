@@ -1,0 +1,469 @@
+"""HTML report writer."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import tempfile
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from jinja2 import Template
+
+CSS_STYLES = """
+        :root {
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+            --color-bg: #f8fafc;
+            --color-border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background: var(--color-bg);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 24px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        h2 {
+            margin: 32px 0 16px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 8px;
+        }
+
+        h2.origin-header {
+            font-family: monospace;
+            font-size: 16px;
+            background: var(--color-bg);
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 24px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .summary-card {
+            background: var(--color-bg);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .summary-card .label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .coverage-bar {
+            height: 8px;
+            background: var(--color-border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .coverage-bar .fill {
+            height: 100%;
+            background: var(--color-success);
+            transition: width 0.3s ease;
+        }
+
+        .coverage-bar.low .fill { background: var(--color-danger); }
+        .coverage-bar.medium .fill { background: var(--color-warning); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            border: 1px solid #cbd5e1;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #cbd5e1;
+        }
+
+        th {
+            background: var(--color-bg);
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #94a3b8;
+        }
+
+        tr:hover td {
+            background: #f1f5f9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* C8: Three coverage states with colors */
+        .badge-success { background: #dcfce7; color: #166534; }      /* Green: hit_count > 1 */
+        .badge-warning { background: #e9ecef; color: #495057; }      /* Gray: hit_count == 1 */
+        .badge-danger { background: #fee2e2; color: #991b1b; }       /* Red: not covered */
+
+        /* C8: Row background colors based on coverage */
+        tr.covered { background-color: #d4edda; }
+        tr.covered-once { background-color: #e9ecef; }
+        tr.not-covered { background-color: #f8d7da; }
+        tr.covered:hover td { background-color: #c3e6cb; }
+        tr.covered-once:hover td { background-color: #dee2e6; }
+        tr.not-covered:hover td { background-color: #f5c6cb; }
+
+        .method {
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .method-get { color: #059669; }
+        .method-post { color: #2563eb; }
+        .method-put { color: #d97706; }
+        .method-delete { color: #dc2626; }
+        .method-patch { color: #7c3aed; }
+
+        .path {
+            font-family: monospace;
+            color: #475569;
+        }
+
+        .response-codes {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .response-code {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #e2e8f0;
+        }
+
+        .response-code.success { background: #dcfce7; }
+        .response-code.redirect { background: #fef3c7; }
+        .response-code.client-error { background: #fee2e2; }
+        .response-code.server-error { background: #fecaca; }
+
+        .footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--color-border);
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .origin-section {
+            margin-bottom: 32px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .origin-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .origin-summary .summary-card {
+            padding: 12px;
+        }
+
+        .origin-summary .summary-card .value {
+            font-size: 24px;
+        }
+"""
+
+ENDPOINTS_TABLE_TEMPLATE = """
+        <table>
+            <thead>
+                <tr>
+                    <th>Path</th>
+                    <th>Hit Count</th>
+                    <th>Method</th>
+                    <th>Method Count</th>
+                    <th>Response Codes</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for path_data in endpoints %}
+                {% for method in path_data.methods %}
+                {% set is_first = loop.first %}
+                {% set row_class = 'covered' if method.hit_count > 1 else ('covered-once' if method.hit_count == 1 else 'not-covered') %}
+                <tr class="{{ row_class }}">
+                    {% if is_first %}
+                    <td rowspan="{{ path_data.methods|length }}" class="path">{{ path_data.path }}</td>
+                    <td rowspan="{{ path_data.methods|length }}">{{ path_data.hit_count }}</td>
+                    {% endif %}
+                    <td><span class="method method-{{ method.method|lower }}">{{ method.method }}</span></td>
+                    <td>{{ method.hit_count }}</td>
+                    <td>
+                        <div class="response-codes">
+                            {% for code, count in method.response_codes.items()|sort %}
+                            {% set code_class = 'success' if code < 300 else ('redirect' if code < 400 else ('client-error' if code < 500 else 'server-error')) %}
+                            <span class="response-code {{ code_class }}">{{ code }} ({{ count }})</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if method.hit_count > 1 %}
+                        <span class="badge badge-success">Covered</span>
+                        {% elif method.hit_count == 1 %}
+                        <span class="badge badge-warning">Once</span>
+                        {% else %}
+                        <span class="badge badge-danger">Not Covered</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+"""
+
+HTML_TEMPLATE = (
+    """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Coverage Report</title>
+    <style>"""
+    + CSS_STYLES
+    + """
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Coverage Report</h1>
+        {% if swagger_source %}
+        <p style="color: #64748b; font-family: monospace; margin-bottom: 24px; word-break: break-all;">
+            <strong>Swagger:</strong> {{ swagger_source }}
+        </p>
+        {% endif %}
+
+        <div class="summary">
+            <div class="summary-card">
+                <div class="value">{{ "%.1f"|format(summary.coverage_percentage) }}%</div>
+                <div class="label">Coverage</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.covered_endpoints }}/{{ summary.total_endpoints }}</div>
+                <div class="label">Endpoints Covered</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ summary.total_requests }}</div>
+                <div class="label">Total Requests</div>
+            </div>
+        </div>
+
+        {% set bar_class = 'low' if summary.coverage_percentage < 50 else ('medium' if summary.coverage_percentage < 80 else '') %}
+        <div class="coverage-bar {{ bar_class }}">
+            <div class="fill" style="width: {{ summary.coverage_percentage }}%"></div>
+        </div>
+
+        """
+    + ENDPOINTS_TABLE_TEMPLATE
+    + """
+
+        <div class="footer">
+            Generated on {{ generated_at }} by pytest-api-coverage
+        </div>
+    </div>
+</body>
+</html>"""
+)
+
+HTML_SPLIT_TEMPLATE = (
+    """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Coverage Report (Split by Origin)</title>
+    <style>"""
+    + CSS_STYLES
+    + """
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Coverage Report</h1>
+        {% if swagger_source %}
+        <p style="color: #64748b; font-family: monospace; margin-bottom: 16px; word-break: break-all;">
+            <strong>Swagger:</strong> {{ swagger_source }}
+        </p>
+        {% endif %}
+        <p style="color: #64748b; margin-bottom: 24px;">Split by Origin</p>
+
+        <div class="summary">
+            <div class="summary-card">
+                <div class="value">{{ "%.1f"|format(combined_summary.coverage_percentage) }}%</div>
+                <div class="label">Combined Coverage</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ combined_summary.covered_endpoints }}/{{ combined_summary.total_endpoints }}</div>
+                <div class="label">Endpoints Covered</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ combined_summary.total_requests }}</div>
+                <div class="label">Total Requests</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ combined_summary.origins_count }}</div>
+                <div class="label">Origins</div>
+            </div>
+        </div>
+
+        {% set bar_class = 'low' if combined_summary.coverage_percentage < 50 else ('medium' if combined_summary.coverage_percentage < 80 else '') %}
+        <div class="coverage-bar {{ bar_class }}">
+            <div class="fill" style="width: {{ combined_summary.coverage_percentage }}%"></div>
+        </div>
+
+        {% for origin, origin_data in origins|dictsort %}
+        <section class="origin-section">
+            <h2 class="origin-header">{{ origin }}</h2>
+
+            <div class="origin-summary">
+                <div class="summary-card">
+                    <div class="value">{{ "%.1f"|format(origin_data.summary.coverage_percentage) }}%</div>
+                    <div class="label">Coverage</div>
+                </div>
+                <div class="summary-card">
+                    <div class="value">{{ origin_data.summary.covered_endpoints }}/{{ origin_data.summary.total_endpoints }}</div>
+                    <div class="label">Endpoints</div>
+                </div>
+                <div class="summary-card">
+                    <div class="value">{{ origin_data.summary.total_requests }}</div>
+                    <div class="label">Requests</div>
+                </div>
+            </div>
+
+            {% set endpoints = origin_data.endpoints %}
+            """
+    + ENDPOINTS_TABLE_TEMPLATE
+    + """
+        </section>
+        {% endfor %}
+
+        <div class="footer">
+            Generated on {{ generated_at }} by pytest-api-coverage
+        </div>
+    </div>
+</body>
+</html>"""
+)
+
+
+class HtmlWriter:
+    """Writes coverage report as HTML file."""
+
+    @classmethod
+    def write(cls, report_data: dict[str, Any], output_path: str | Path) -> Path:
+        """Write coverage report as HTML file.
+
+        Args:
+            report_data: Coverage report dictionary
+            output_path: Destination file path
+
+        Returns:
+            Path to written file
+        """
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        html_content = cls._render(report_data)
+
+        # Atomic write
+        fd, temp_path = tempfile.mkstemp(
+            suffix=".html",
+            dir=output_path.parent,
+        )
+
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            shutil.move(temp_path, output_path)
+        except Exception:
+            Path(temp_path).unlink(missing_ok=True)
+            raise
+
+        return output_path
+
+    @classmethod
+    def write_string(cls, report_data: dict[str, Any]) -> str:
+        """Serialize report data to HTML string.
+
+        Args:
+            report_data: Coverage report dictionary
+
+        Returns:
+            HTML string
+        """
+        return cls._render(report_data)
+
+    @classmethod
+    def _render(cls, report_data: dict[str, Any]) -> str:
+        """Render report data to HTML string."""
+        generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        if report_data.get("split_by_origin"):
+            template = Template(HTML_SPLIT_TEMPLATE)
+            return template.render(
+                swagger_source=report_data.get("swagger_source", ""),
+                combined_summary=report_data.get("combined_summary", {}),
+                origins=report_data.get("origins", {}),
+                generated_at=generated_at,
+            )
+
+        template = Template(HTML_TEMPLATE)
+        return template.render(
+            swagger_source=report_data.get("swagger_source", ""),
+            summary=report_data.get("summary", {}),
+            endpoints=report_data.get("endpoints", []),
+            generated_at=generated_at,
+        )

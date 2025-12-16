@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-api-coverage"
+version = "0.1.0"
+description = "Pytest plugin for API test coverage analysis"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "pytest>=7.0.0",
+    "pyyaml>=6.0",
+    "requests>=2.28.0",
+    "httpx>=0.24.0",
+    "pandas>=2.0.0",
+    "jinja2>=3.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-mock",
+    "pytest-xdist",
+    "pytest-asyncio>=0.21.0",
+    "pytest-httpx>=0.22.0",
+    "responses>=0.25.8",
+    "ruff",
+    "mypy>=1.0.0",
+]
+
+[project.entry-points.pytest11]
+api_coverage = "pytest_api_coverage.plugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pytest_api_coverage"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# HTML template contains long Jinja2 lines
+"src/pytest_api_coverage/writers/html_writer.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/pytest_api_coverage"]

@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+**__pycache__/**
+*.pyc
+*.pyo
+.mypy_cache/
+
+# Test outputs
+coverage-output/
+
+# uv
+.venv/
