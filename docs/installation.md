@@ -22,20 +22,20 @@ uv add pytest-api-coverage
 ### Using pip
 
 ```bash
-pip install git+https://github.com/your-username/pytest-api-coverage.git
+pip install git+https://github.com/anatolybobunov/pytest-api-coverage.git
 ```
 
 ### Using uv
 
 ```bash
-uv add git+https://github.com/your-username/pytest-api-coverage.git
+uv add git+https://github.com/anatolybobunov/pytest-api-coverage.git
 ```
 
 ### Local Development Install
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/pytest-api-coverage.git
+git clone https://github.com/anatolybobunov/pytest-api-coverage.git
 cd pytest-api-coverage
 
 # Install in editable mode

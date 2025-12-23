@@ -373,16 +373,24 @@ def _print_standard_summary(terminalreporter: TerminalReporter, report_data: dic
     )
     terminalreporter.write_line(f"Total HTTP requests: {summary.get('total_requests', 0)}")
 
-    # Show uncovered endpoints
+    # Show uncovered endpoints (grouped by path)
     endpoints = report_data.get("endpoints", [])
-    uncovered = [ep for ep in endpoints if not ep.get("is_covered", False)]
-    if uncovered:
+    uncovered_paths = [ep for ep in endpoints if not ep.get("is_covered", False)]
+    if uncovered_paths:
+        # Count total uncovered methods
+        uncovered_methods = []
+        for path_data in uncovered_paths:
+            path = path_data.get("path", "")
+            for method_data in path_data.get("methods", []):
+                if not method_data.get("is_covered", False):
+                    uncovered_methods.append((method_data.get("method", "?"), path))
+
         terminalreporter.write_line("")
-        terminalreporter.write_line(f"Uncovered endpoints ({len(uncovered)}):")
-        for ep in uncovered[:10]:  # Show max 10
-            terminalreporter.write_line(f"  - {ep['method']} {ep['path']}")
-        if len(uncovered) > 10:
-            terminalreporter.write_line(f"  ... and {len(uncovered) - 10} more")
+        terminalreporter.write_line(f"Uncovered endpoints ({len(uncovered_methods)}):")
+        for method, path in uncovered_methods[:10]:  # Show max 10
+            terminalreporter.write_line(f"  - {method} {path}")
+        if len(uncovered_methods) > 10:
+            terminalreporter.write_line(f"  ... and {len(uncovered_methods) - 10} more")
 
 
 def _print_split_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:

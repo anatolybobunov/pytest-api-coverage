@@ -11,6 +11,12 @@ Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requ
 - **Origin filtering** — filter coverage by base URL or allowlist
 - **Split by origin** — generate separate coverage per API origin
 
+## Documentation
+
+- [Installation Guide](docs/installation.md)
+- [Usage Guide](docs/usage.md)
+- [Architecture](docs/architecture.md)
+
 ## Installation
 
 ```bash
@@ -55,12 +61,6 @@ pytest tests/ -n 4 --swagger=swagger.json
 | `--coverage-split-by-origin` | `false` | Separate coverage per origin |
 
 See [docs/usage.md](docs/usage.md) for detailed usage examples.
-
-## Documentation
-
-- [Installation Guide](docs/installation.md)
-- [Usage Guide](docs/usage.md)
-- [Architecture](docs/architecture.md)
 
 ## Development
 

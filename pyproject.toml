@@ -9,6 +9,27 @@ description = "Pytest plugin for API test coverage analysis"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = [ "LICENSE" ]
+keywords = [ "pytest", "pytest-xdist", "test", "testing", "api", "coverage", "swagger", "openapi"]
+authors = [{ name = "Anatoly Bobunov", email = "dev.bobunov@gmail.com" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Framework :: Pytest",
+]
+[project.urls]
+Homepage = "https://github.com/anatolybobunov/pytest-api-coverage"
+Repository = "https://github.com/anatolybobunov/pytest-api-coverage"
+Documentation = "https://github.com/anatolybobunov/pytest-api-coverage#readme"
+Changelog = "https://github.com/anatolybobunov/pytest-api-coverage/blob/main/CHANGELOG.md"
+
 dependencies = [
     "pytest>=7.0.0",
     "pyyaml>=6.0",
