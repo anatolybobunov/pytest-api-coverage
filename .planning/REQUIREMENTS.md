@@ -61,22 +61,22 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CFG-01 | Phase 1 | Pending |
-| CFG-02 | Phase 1 | Pending |
-| CFG-03 | Phase 1 | Pending |
-| CFG-04 | Phase 1 | Pending |
-| CFG-05 | Phase 1 | Pending |
-| SET-01 | Phase 1 | Pending |
-| SET-02 | Phase 2 | Pending |
-| ORC-01 | Phase 2 | Pending |
-| ORC-02 | Phase 2 | Pending |
-| ORC-03 | Phase 2 | Pending |
-| OUT-01 | Phase 2 | Pending |
-| OUT-02 | Phase 3 | Pending |
-| OUT-03 | Phase 3 | Pending |
-| COMPAT-01 | Phase 3 | Pending |
-| COMPAT-02 | Phase 3 | Pending |
-| COMPAT-03 | Phase 2 | Pending |
+| CFG-01 | Phase 1: Config and Activation | Pending |
+| CFG-02 | Phase 1: Config and Activation | Pending |
+| CFG-03 | Phase 1: Config and Activation | Pending |
+| CFG-04 | Phase 1: Config and Activation | Pending |
+| CFG-05 | Phase 1: Config and Activation | Pending |
+| SET-01 | Phase 1: Config and Activation | Pending |
+| SET-02 | Phase 2: Orchestration and File Output | Pending |
+| ORC-01 | Phase 2: Orchestration and File Output | Pending |
+| ORC-02 | Phase 2: Orchestration and File Output | Pending |
+| ORC-03 | Phase 2: Orchestration and File Output | Pending |
+| OUT-01 | Phase 2: Orchestration and File Output | Pending |
+| COMPAT-03 | Phase 2: Orchestration and File Output | Pending |
+| OUT-02 | Phase 3: Terminal Summary and Compatibility | Pending |
+| OUT-03 | Phase 3: Terminal Summary and Compatibility | Pending |
+| COMPAT-01 | Phase 3: Terminal Summary and Compatibility | Pending |
+| COMPAT-02 | Phase 3: Terminal Summary and Compatibility | Pending |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation*
