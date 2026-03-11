@@ -69,6 +69,41 @@ def pytest_addoption(parser: Parser) -> None:
         default=False,
         help="Generate separate coverage buckets per origin in reports",
     )
+    group.addoption(
+        "--coverage-config",
+        dest="coverage_config",
+        type=str,
+        default=None,
+        help="Path to api-coverage config file (YAML/JSON) for multi-spec configuration",
+    )
+    group.addoption(
+        "--coverage-spec-name",
+        dest="coverage_spec_name",
+        type=str,
+        default=None,
+        help="Name for a single spec (used with --coverage-spec-path or --coverage-spec-url)",
+    )
+    group.addoption(
+        "--coverage-spec-path",
+        dest="coverage_spec_path",
+        type=str,
+        default=None,
+        help="Local file path to an OpenAPI spec for single-spec CLI mode",
+    )
+    group.addoption(
+        "--coverage-spec-url",
+        dest="coverage_spec_url",
+        type=str,
+        default=None,
+        help="Remote URL of an OpenAPI spec for single-spec CLI mode",
+    )
+    group.addoption(
+        "--coverage-spec-base-url",
+        dest="coverage_spec_base_url",
+        action="append",
+        default=None,
+        help="Base URL(s) for the spec (repeatable). Example: --coverage-spec-base-url https://api.example.com",
+    )
 
 
 def pytest_configure(config: Config) -> None:

@@ -71,7 +71,7 @@ class TestToDict:
         spec_dict = result["specs"][0]
         assert isinstance(spec_dict, dict)
         assert spec_dict["name"] == "auth"
-        assert spec_dict["path"] == "./auth.yaml"
+        assert spec_dict["path"] == "auth.yaml"  # Path("./auth.yaml") normalises to "auth.yaml"
 
 
 class TestFromDict:
@@ -114,7 +114,7 @@ class TestFromPytestConfig:
         assert len(settings.specs) == 1
         spec = settings.specs[0]
         assert spec.name == "auth"
-        assert spec.path == Path("./auth.yaml")
+        assert spec.path == Path("auth.yaml")  # Path("./auth.yaml") normalises to Path("auth.yaml")
         assert spec.urls == ["https://auth.example.com"]
 
     def test_from_pytest_config_cli_spec_url(self, mocker: Any) -> None:

@@ -8,8 +8,8 @@
 ### Config
 
 - [x] **CFG-01**: Пользователь может задать несколько спек через YAML/JSON конфиг-файл с полями `name`, `path`, `urls` на каждую спеку
-- [ ] **CFG-02**: Плагин автоматически обнаруживает `coverage-config.yaml` / `coverage-config.json` в корне проекта без явного указания
-- [ ] **CFG-03**: Пользователь может указать конфиг-файл явно через флаг `--coverage-config=path`
+- [x] **CFG-02**: Плагин автоматически обнаруживает `coverage-config.yaml` / `coverage-config.json` в корне проекта без явного указания
+- [x] **CFG-03**: Пользователь может указать конфиг-файл явно через флаг `--coverage-config=path`
 - [ ] **CFG-04**: Пользователь может задать одну спеку через CLI-флаги `--coverage-spec-name`, `--coverage-spec-path`, `--coverage-spec-url` (для простых случаев)
 - [ ] **CFG-05**: Плагин выдаёт понятную ошибку при попытке совместить `--swagger` с multi-spec флагами
 
@@ -62,8 +62,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CFG-01 | Phase 1: Config and Activation | Complete |
-| CFG-02 | Phase 1: Config and Activation | Pending |
-| CFG-03 | Phase 1: Config and Activation | Pending |
+| CFG-02 | Phase 1: Config and Activation | Complete |
+| CFG-03 | Phase 1: Config and Activation | Complete |
 | CFG-04 | Phase 1: Config and Activation | Pending |
 | CFG-05 | Phase 1: Config and Activation | Pending |
 | SET-01 | Phase 1: Config and Activation | Pending |
