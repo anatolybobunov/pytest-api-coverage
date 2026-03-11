@@ -22,7 +22,13 @@ The plugin currently supports one specification per run. This work adds multi-sp
   3. User can run `pytest --coverage-spec-name=auth --coverage-spec-path=./auth.yaml --coverage-spec-url=https://auth.example.com` for a single spec via CLI
   4. Running `pytest --swagger=spec.yaml --coverage-spec-path=./auth.yaml` produces a clear error explaining the flags cannot be combined
   5. `is_enabled()` returns `True` when any of `--swagger`, `--coverage-spec-path`, or a discovered config file is present
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — SpecConfig dataclass + tests/unit/ scaffold (CFG-01, TDD)
+- [ ] 01-02-PLAN.md — multi_spec.py config loader + _discover_config_file() (CFG-01, CFG-02, CFG-03, TDD)
+- [ ] 01-03-PLAN.md — CLI flags in plugin.py + CoverageSettings.specs extension (CFG-04, CFG-05, SET-01, TDD)
+- [ ] 01-04-PLAN.md — Wire loader into from_pytest_config() + integration tests (CFG-02, CFG-03)
 
 ### Phase 2: Orchestration and File Output
 **Goal**: HTTP requests are routed to the correct per-spec reporter and each spec produces its own set of output files with the spec name as prefix
@@ -51,6 +57,6 @@ The plugin currently supports one specification per run. This work adds multi-sp
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Config and Activation | 0/? | Not started | - |
+| 1. Config and Activation | 0/4 | Not started | - |
 | 2. Orchestration and File Output | 0/? | Not started | - |
 | 3. Terminal Summary and Compatibility | 0/? | Not started | - |
