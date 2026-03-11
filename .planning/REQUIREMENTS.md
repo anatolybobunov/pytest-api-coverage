@@ -17,11 +17,11 @@
 
 - [x] **ORC-01**: Плагин создаёт отдельный `CoverageReporter` для каждой спеки, фильтруя запросы по URL этой спеки
 - [x] **ORC-02**: HTTP-запросы, не совпадающие ни с одним URL из конфига, игнорируются (не вызывают ошибок)
-- [ ] **ORC-03**: Плагин генерирует отдельный набор файлов отчётов для каждой спеки
+- [x] **ORC-03**: Плагин генерирует отдельный набор файлов отчётов для каждой спеки
 
 ### Output
 
-- [ ] **OUT-01**: Имена файлов отчётов содержат префикс из имени спеки: `{name}-coverage.json`, `{name}-coverage.html`, `{name}-coverage.csv`
+- [x] **OUT-01**: Имена файлов отчётов содержат префикс из имени спеки: `{name}-coverage.json`, `{name}-coverage.html`, `{name}-coverage.csv`
 - [ ] **OUT-02**: Terminal summary показывает одну строку на спеку: покрытие в процентах, количество запросов, имя файла
 - [ ] **OUT-03**: Terminal summary показывает итоговую строку с суммарным покрытием и счётчиком проигнорированных запросов
 
@@ -70,8 +70,8 @@
 | SET-02 | Phase 2: Orchestration and File Output | Complete |
 | ORC-01 | Phase 2: Orchestration and File Output | Complete |
 | ORC-02 | Phase 2: Orchestration and File Output | Complete |
-| ORC-03 | Phase 2: Orchestration and File Output | Pending |
-| OUT-01 | Phase 2: Orchestration and File Output | Pending |
+| ORC-03 | Phase 2: Orchestration and File Output | Complete |
+| OUT-01 | Phase 2: Orchestration and File Output | Complete |
 | COMPAT-03 | Phase 2: Orchestration and File Output | Complete |
 | OUT-02 | Phase 3: Terminal Summary and Compatibility | Pending |
 | OUT-03 | Phase 3: Terminal Summary and Compatibility | Pending |

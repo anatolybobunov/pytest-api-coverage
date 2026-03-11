@@ -7,7 +7,7 @@ The plugin currently supports one specification per run. This work adds multi-sp
 ## Phases
 
 - [x] **Phase 1: Config and Activation** - Parse multi-spec configuration from all sources and activate the plugin correctly (completed 2026-03-11)
-- [ ] **Phase 2: Orchestration and File Output** - Route requests to per-spec reporters and write prefixed report files
+- [x] **Phase 2: Orchestration and File Output** - Route requests to per-spec reporters and write prefixed report files (completed 2026-03-11)
 - [ ] **Phase 3: Terminal Summary and Compatibility** - Display per-spec summary, validate backward compatibility, confirm xdist works
 
 ## Phase Details
@@ -64,5 +64,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config and Activation | 4/4 | Complete   | 2026-03-11 |
-| 2. Orchestration and File Output | 2/4 | In Progress | - |
+| 2. Orchestration and File Output | 3/3 | Complete   | 2026-03-11 |
 | 3. Terminal Summary and Compatibility | 0/? | Not started | - |
