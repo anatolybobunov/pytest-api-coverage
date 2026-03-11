@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-config-and-activation/01-03-PLAN.md
-last_updated: "2026-03-11T12:09:43.082Z"
-last_activity: 2026-03-11 — Completed 01-01 SpecConfig dataclass
+stopped_at: Completed 01-config-and-activation/01-04-PLAN.md
+last_updated: "2026-03-11T12:16:48.667Z"
+last_activity: 2026-03-11 — Completed 01-03 CoverageSettings extension + CLI flags
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 25
+  completed_plans: 4
+  percent: 75
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Progress: [████████░░] 75%
 *Updated after each plan completion*
 | Phase 01-config-and-activation P02 | 2 | 1 tasks | 2 files |
 | Phase 01-config-and-activation P03 | 3 | 1 tasks | 3 files |
+| Phase 01-config-and-activation P04 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Progress: [████████░░] 75%
 - [Phase 01-config-and-activation]: SpecConfig moved before CoverageSettings in settings.py to resolve forward reference for specs field annotation
 - [Phase 01-config-and-activation]: --coverage-spec-base-url uses action=append with default=None to prevent argparse list mutation across test runs
 - [Phase 01-config-and-activation]: Swagger + multi-spec conflict: swagger wins, specs=[], warning printed; config file auto-discovery deferred to Plan 04
+- [Phase 01-config-and-activation]: Local imports in from_pytest_config() for multi_spec functions to avoid circular import
+- [Phase 01-config-and-activation]: pytester enabled globally via pyproject.toml addopts = -p pytester
+- [Phase 01-config-and-activation]: pytest.exit() outputs to stderr; integration tests use result.stderr.fnmatch_lines
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:09:43.081Z
-Stopped at: Completed 01-config-and-activation/01-03-PLAN.md
+Last session: 2026-03-11T12:16:48.665Z
+Stopped at: Completed 01-config-and-activation/01-04-PLAN.md
 Resume file: None
