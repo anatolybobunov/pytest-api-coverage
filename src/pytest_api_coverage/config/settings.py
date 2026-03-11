@@ -164,3 +164,74 @@ class CoverageSettings:
             True if swagger is configured
         """
         return self.swagger is not None
+
+
+@dataclass
+class SpecConfig:
+    """Per-spec configuration for multi-spec API coverage.
+
+    Represents a single OpenAPI specification and its associated
+    target URLs. Supports both local file paths and remote URLs
+    for the spec source, with xdist-safe serialisation.
+    """
+
+    name: str
+    urls: list[str]
+    path: str | Path | None = None
+    url: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate fields after initialization."""
+        if not self.name:
+            raise ValueError("SpecConfig 'name' must be a non-empty string")
+
+        if self.path is not None and self.url is not None:
+            raise ValueError(
+                "SpecConfig 'path' and 'url' are mutually exclusive; provide only one"
+            )
+
+        if not self.urls:
+            raise ValueError("SpecConfig 'urls' must be a non-empty list")
+
+        # Normalise path to Path object
+        if self.path is not None and isinstance(self.path, str):
+            self.path = Path(self.path)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SpecConfig:
+        """Create SpecConfig from a dictionary.
+
+        Args:
+            data: Dictionary with spec configuration values.
+                  Must contain 'name' and 'urls' keys.
+
+        Returns:
+            SpecConfig instance
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        if "urls" not in data:
+            raise ValueError("SpecConfig dict must contain 'urls' key")
+        return cls(
+            name=data["name"],
+            urls=data["urls"],
+            path=data.get("path"),
+            url=data.get("url"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize SpecConfig to a JSON-safe dictionary.
+
+        All values are JSON primitives (path serialised as str).
+        Safe for xdist master-to-worker transfer via JSON.
+
+        Returns:
+            Dictionary with serializable values
+        """
+        return {
+            "name": self.name,
+            "urls": self.urls,
+            "path": str(self.path) if self.path is not None else None,
+            "url": self.url,
+        }
