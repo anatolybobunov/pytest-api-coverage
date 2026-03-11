@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-config-and-activation/01-04-PLAN.md
-last_updated: "2026-03-11T12:16:48.667Z"
-last_activity: 2026-03-11 — Completed 01-03 CoverageSettings extension + CLI flags
+stopped_at: Completed 02-orchestration-and-file-output/02-01-PLAN.md
+last_updated: "2026-03-11T13:38:28.000Z"
+last_activity: 2026-03-11 — Completed 02-01 write_reports prefix + SpecConfig round-trip tests
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 75
+  total_plans: 5
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Run one `pytest`, get separate coverage reports per microservice — no test code changes required
-**Current focus:** Phase 1 — Config and Activation
+**Current focus:** Phase 2 — Orchestration and File Output
 
 ## Current Position
 
-Phase: 1 of 3 (Config and Activation)
-Plan: 3 of 4 in current phase (01-03 complete)
+Phase: 2 of 3 (Orchestration and File Output)
+Plan: 1 of 4 in current phase (02-01 complete)
 Status: In Progress
-Last activity: 2026-03-11 — Completed 01-03 CoverageSettings extension + CLI flags
+Last activity: 2026-03-11 — Completed 02-01 write_reports prefix + SpecConfig round-trip tests
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 83%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [████████░░] 75%
 | Phase 01-config-and-activation P02 | 2 | 1 tasks | 2 files |
 | Phase 01-config-and-activation P03 | 3 | 1 tasks | 3 files |
 | Phase 01-config-and-activation P04 | 8 min | 2 tasks | 6 files |
+| Phase 02-orchestration-and-file-output P01 | 2 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Progress: [████████░░] 75%
 - [Phase 01-config-and-activation]: Local imports in from_pytest_config() for multi_spec functions to avoid circular import
 - [Phase 01-config-and-activation]: pytester enabled globally via pyproject.toml addopts = -p pytester
 - [Phase 01-config-and-activation]: pytest.exit() outputs to stderr; integration tests use result.stderr.fnmatch_lines
+- [Phase 02-orchestration-and-file-output]: write_reports prefix param as optional trailing kwarg with default None; stem computed once as f'{prefix}-coverage' if prefix else 'coverage'
+- [Phase 02-orchestration-and-file-output]: SpecConfig round-trip tests confirm Phase 1 xdist-safe serialisation — no code changes needed in settings.py
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:16:48.665Z
-Stopped at: Completed 01-config-and-activation/01-04-PLAN.md
+Last session: 2026-03-11T13:38:28.000Z
+Stopped at: Completed 02-orchestration-and-file-output/02-01-PLAN.md
 Resume file: None

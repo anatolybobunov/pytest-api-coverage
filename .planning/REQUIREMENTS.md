@@ -29,12 +29,12 @@
 
 - [ ] **COMPAT-01**: Флаг `--swagger` продолжает работать без изменений; выходные файлы по-прежнему именуются `coverage.json`, `coverage.html`, `coverage.csv`
 - [ ] **COMPAT-02**: Multi-spec режим корректно работает с pytest-xdist: воркеры собирают данные, мастер генерирует все отчёты
-- [ ] **COMPAT-03**: `SpecConfig` сериализуется для передачи через xdist `workerinput` канал
+- [x] **COMPAT-03**: `SpecConfig` сериализуется для передачи через xdist `workerinput` канал
 
 ### Settings
 
 - [x] **SET-01**: `is_enabled()` возвращает `True` при любом из трёх источников конфигурации: `--swagger`, `--coverage-spec-path`, или наличие конфиг-файла
-- [ ] **SET-02**: `write_reports()` принимает опциональный параметр `prefix`; при `prefix=None` поведение идентично текущему
+- [x] **SET-02**: `write_reports()` принимает опциональный параметр `prefix`; при `prefix=None` поведение идентично текущему
 
 ## v2 Requirements
 
@@ -67,12 +67,12 @@
 | CFG-04 | Phase 1: Config and Activation | Complete |
 | CFG-05 | Phase 1: Config and Activation | Complete |
 | SET-01 | Phase 1: Config and Activation | Complete |
-| SET-02 | Phase 2: Orchestration and File Output | Pending |
+| SET-02 | Phase 2: Orchestration and File Output | Complete |
 | ORC-01 | Phase 2: Orchestration and File Output | Pending |
 | ORC-02 | Phase 2: Orchestration and File Output | Pending |
 | ORC-03 | Phase 2: Orchestration and File Output | Pending |
 | OUT-01 | Phase 2: Orchestration and File Output | Pending |
-| COMPAT-03 | Phase 2: Orchestration and File Output | Pending |
+| COMPAT-03 | Phase 2: Orchestration and File Output | Complete |
 | OUT-02 | Phase 3: Terminal Summary and Compatibility | Pending |
 | OUT-03 | Phase 3: Terminal Summary and Compatibility | Pending |
 | COMPAT-01 | Phase 3: Terminal Summary and Compatibility | Pending |
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after roadmap creation*
+*Last updated: 2026-03-11 after 02-01 plan completion (SET-02, COMPAT-03 complete)*

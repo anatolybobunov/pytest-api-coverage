@@ -40,7 +40,13 @@ Plans:
   3. An HTTP request to an unregistered URL causes no error and does not appear in any spec report
   4. `write_reports()` called with `prefix=None` produces `coverage.json/html/csv` — identical to current behavior
   5. `SpecConfig` round-trips correctly through `to_dict()` / `from_dict()` without data loss
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [x] 02-01-PLAN.md — write_reports() prefix param + SpecConfig round-trip tests (SET-02, COMPAT-03, TDD)
+- [ ] 02-02-PLAN.md — MultiSpecOrchestrator + per-spec reporter routing (ORC-01, ORC-02, ORC-03, TDD)
+- [ ] 02-03-PLAN.md — Wire orchestrator into plugin.py (OUT-01)
+- [ ] 02-04-PLAN.md — xdist serialisation end-to-end validation (COMPAT-03)
 
 ### Phase 3: Terminal Summary and Compatibility
 **Goal**: Users see a readable per-spec summary in the terminal, the legacy `--swagger` flag works without any changes, and multi-spec mode survives pytest-xdist parallel runs
@@ -58,5 +64,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config and Activation | 4/4 | Complete   | 2026-03-11 |
-| 2. Orchestration and File Output | 0/? | Not started | - |
+| 2. Orchestration and File Output | 1/4 | In Progress | - |
 | 3. Terminal Summary and Compatibility | 0/? | Not started | - |
