@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from pytest_api_coverage.adapters import HttpxAdapter, RequestsAdapter
+from pytest_api_coverage.adapters import ADAPTER_REGISTRY
 from pytest_api_coverage.collector import CoverageCollector
+from pytest_api_coverage.config.settings import CoverageSettings
 from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerParser, SwaggerSpec
+from pytest_api_coverage.writers import write_reports
 
 if TYPE_CHECKING:
     from pytest import Config, Item, Parser, Session, TerminalReporter
@@ -72,8 +73,7 @@ def pytest_addoption(parser: Parser) -> None:
 
 def pytest_configure(config: Config) -> None:
     """Register the appropriate plugin based on execution mode."""
-    swagger = config.getoption("swagger", None)
-    if not swagger:
+    if not CoverageSettings.from_pytest_config(config).is_enabled():
         return  # Coverage not enabled
 
     # Determine execution mode
@@ -109,32 +109,11 @@ class CoverageSinglePlugin:
 
     def __init__(self, config: Config) -> None:
         self.config = config
+        self.settings = CoverageSettings.from_pytest_config(config)
         self.collector = CoverageCollector()
-        self.swagger_path = config.getoption("swagger")
-        self.output_dir = config.getoption("coverage_output")
-        self.formats = set(config.getoption("coverage_format").split(","))
+        self._adapters = [cls(self.collector) for cls in ADAPTER_REGISTRY]
         self.swagger_spec: SwaggerSpec | None = None
         self.report_data: dict[str, Any] | None = None
-
-        # Origin filtering options
-        self.base_url = config.getoption("coverage_base_url")
-        self.include_base_urls = self._parse_csv_option(config.getoption("coverage_include_base_url"))
-        self.strip_prefixes = self._parse_csv_list(config.getoption("coverage_strip_prefix"))
-        self.split_by_origin = config.getoption("coverage_split_by_origin")
-
-    @staticmethod
-    def _parse_csv_option(value: str | None) -> set[str]:
-        """Parse comma-separated string into set."""
-        if not value:
-            return set()
-        return {v.strip() for v in value.split(",") if v.strip()}
-
-    @staticmethod
-    def _parse_csv_list(value: str | None) -> list[str]:
-        """Parse comma-separated string into list."""
-        if not value:
-            return []
-        return [v.strip() for v in value.split(",") if v.strip()]
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
@@ -172,19 +151,19 @@ class CoverageSinglePlugin:
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
         try:
-            self.swagger_spec = SwaggerParser.parse(self.swagger_path)
+            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
         except Exception as e:
             print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
 
     def _setup_http_interception(self) -> None:
         """Install HTTP adapters for requests and httpx."""
-        RequestsAdapter.install(self.collector)
-        HttpxAdapter.install(self.collector)
+        for adapter in self._adapters:
+            adapter.install()
 
     def _teardown_http_interception(self) -> None:
         """Uninstall HTTP adapters to prevent memory leaks."""
-        RequestsAdapter.uninstall()
-        HttpxAdapter.uninstall()
+        for adapter in self._adapters:
+            adapter.uninstall()
 
     def _generate_report(self) -> None:
         """Generate coverage report using reporter."""
@@ -193,19 +172,18 @@ class CoverageSinglePlugin:
 
         reporter = CoverageReporter(
             self.swagger_spec,
-            base_url=self.base_url,
-            include_base_urls=self.include_base_urls or None,
-            strip_prefixes=self.strip_prefixes or None,
-            split_by_origin=self.split_by_origin,
+            base_url=self.settings.base_url,
+            include_base_urls=self.settings.include_base_urls or None,
+            strip_prefixes=self.settings.strip_prefixes or None,
+            split_by_origin=self.settings.split_by_origin,
         )
         reporter.process_interactions(self.collector.get_data())
         self.report_data = reporter.generate_report()
 
         # Write reports to files
-        output_dir = Path(self.output_dir)
-        written = reporter.write_reports(output_dir, self.formats)
+        written = write_reports(self.report_data, self.settings.output_dir, self.settings.formats)
         if written:
-            print(f"\n[api-coverage] Reports written to: {output_dir}")
+            print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
 
 
 class CoverageMasterPlugin:
@@ -213,50 +191,25 @@ class CoverageMasterPlugin:
 
     def __init__(self, config: Config) -> None:
         self.config = config
-        self.swagger_path = config.getoption("swagger")
-        self.output_dir = config.getoption("coverage_output")
-        self.formats = set(config.getoption("coverage_format").split(","))
+        self.settings = CoverageSettings.from_pytest_config(config)
         self.worker_data: dict[str, list[dict[str, Any]]] = {}
         self.swagger_spec: SwaggerSpec | None = None
         self.report_data: dict[str, Any] | None = None
 
-        # Origin filtering options
-        self.base_url = config.getoption("coverage_base_url")
-        self.include_base_urls = self._parse_csv_option(config.getoption("coverage_include_base_url"))
-        self.strip_prefixes = self._parse_csv_list(config.getoption("coverage_strip_prefix"))
-        self.split_by_origin = config.getoption("coverage_split_by_origin")
-
         # Load swagger on master
         self._load_swagger()
-
-    @staticmethod
-    def _parse_csv_option(value: str | None) -> set[str]:
-        """Parse comma-separated string into set."""
-        if not value:
-            return set()
-        return {v.strip() for v in value.split(",") if v.strip()}
-
-    @staticmethod
-    def _parse_csv_list(value: str | None) -> list[str]:
-        """Parse comma-separated string into list."""
-        if not value:
-            return []
-        return [v.strip() for v in value.split(",") if v.strip()]
 
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
         try:
-            self.swagger_spec = SwaggerParser.parse(self.swagger_path)
+            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
         except Exception as e:
             print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
 
     @pytest.hookimpl
     def pytest_configure_node(self, node: object) -> None:
         """Send configuration to worker nodes."""
-        # Pass settings to worker
-        node.workerinput["coverage_swagger"] = self.swagger_path  # type: ignore[attr-defined]
-        node.workerinput["coverage_output"] = self.output_dir  # type: ignore[attr-defined]
-        node.workerinput["coverage_formats"] = ",".join(self.formats)  # type: ignore[attr-defined]
+        node.workerinput["coverage_settings"] = self.settings.to_dict()  # type: ignore[attr-defined]
 
     @pytest.hookimpl
     def pytest_testnodedown(self, node: object, error: object) -> None:
@@ -288,19 +241,18 @@ class CoverageMasterPlugin:
 
         reporter = CoverageReporter(
             self.swagger_spec,
-            base_url=self.base_url,
-            include_base_urls=self.include_base_urls or None,
-            strip_prefixes=self.strip_prefixes or None,
-            split_by_origin=self.split_by_origin,
+            base_url=self.settings.base_url,
+            include_base_urls=self.settings.include_base_urls or None,
+            strip_prefixes=self.settings.strip_prefixes or None,
+            split_by_origin=self.settings.split_by_origin,
         )
         reporter.process_interactions(data)
         self.report_data = reporter.generate_report()
 
         # Write reports to files
-        output_dir = Path(self.output_dir)
-        written = reporter.write_reports(output_dir, self.formats)
+        written = write_reports(self.report_data, self.settings.output_dir, self.settings.formats)
         if written:
-            print(f"\n[api-coverage] Reports written to: {output_dir}")
+            print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
 
 
 class CoverageWorkerPlugin:
@@ -309,8 +261,8 @@ class CoverageWorkerPlugin:
     def __init__(self, config: Config) -> None:
         self.config = config
         self.collector = CoverageCollector()
-        # Get settings from master via workerinput
-        self.swagger_path = config.workerinput.get("coverage_swagger")  # type: ignore[attr-defined]
+        self.settings = CoverageSettings.from_dict(config.workerinput.get("coverage_settings", {}))  # type: ignore[attr-defined]
+        self._adapters = [cls(self.collector) for cls in ADAPTER_REGISTRY]
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
@@ -339,13 +291,13 @@ class CoverageWorkerPlugin:
 
     def _setup_http_interception(self) -> None:
         """Install HTTP adapters."""
-        RequestsAdapter.install(self.collector)
-        HttpxAdapter.install(self.collector)
+        for adapter in self._adapters:
+            adapter.install()
 
     def _teardown_http_interception(self) -> None:
         """Uninstall HTTP adapters."""
-        RequestsAdapter.uninstall()
-        HttpxAdapter.uninstall()
+        for adapter in self._adapters:
+            adapter.uninstall()
 
 
 def _print_terminal_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
-
-import pandas as pd
 
 
 class CsvWriter:
@@ -28,18 +28,20 @@ class CsvWriter:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Convert endpoints to DataFrame
-        df = cls._to_dataframe(report_data)
+        fieldnames, rows = cls._build_rows(report_data)
 
         # Atomic write
         fd, temp_path = tempfile.mkstemp(
             suffix=".csv",
             dir=output_path.parent,
         )
-        os.close(fd)  # Close fd, pandas will open the file itself
+        os.close(fd)
 
         try:
-            df.to_csv(temp_path, index=False, encoding="utf-8")
+            with open(temp_path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames, restval="")
+                writer.writeheader()
+                writer.writerows(rows)
             shutil.move(temp_path, output_path)
         except Exception:
             Path(temp_path).unlink(missing_ok=True)
@@ -48,26 +50,27 @@ class CsvWriter:
         return output_path
 
     @classmethod
-    def _to_dataframe(cls, report_data: dict[str, Any]) -> pd.DataFrame:
-        """Convert report data to pandas DataFrame.
+    def _build_rows(cls, report_data: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+        """Convert report data to (fieldnames, rows) for CSV serialisation.
 
         Args:
             report_data: Coverage report dictionary
 
         Returns:
-            DataFrame with endpoint coverage data
+            Tuple of column headers and list of row dicts
         """
         if report_data.get("split_by_origin"):
-            return cls._to_dataframe_split(report_data)
-        return cls._to_dataframe_standard(report_data)
+            return cls._to_rows_split(report_data)
+        return cls._to_rows_standard(report_data)
 
     @classmethod
-    def _to_dataframe_standard(cls, report_data: dict[str, Any]) -> pd.DataFrame:
-        """Convert standard report to DataFrame (grouped by path)."""
+    def _to_rows_standard(cls, report_data: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+        """Convert standard report to (fieldnames, rows) grouped by path."""
+        fieldnames: list[str] = ["Path", "Hit Count", "Method", "Method Count", "Response Codes", "Covered"]
         endpoints = report_data.get("endpoints", [])
         swagger_source = report_data.get("swagger_source", "")
 
-        rows = []
+        rows: list[dict[str, Any]] = []
 
         # Add swagger source header row
         if swagger_source:
@@ -85,29 +88,37 @@ class CsvWriter:
         for path_data in endpoints:
             rows.extend(cls._path_to_rows(path_data))
 
-        df = pd.DataFrame(rows)
-
         # Add summary row
         summary = report_data.get("summary", {})
-        summary_row = {
-            "Path": "TOTAL",
-            "Hit Count": summary.get("total_requests", 0),
-            "Method": "",
-            "Method Count": f"{summary.get('covered_endpoints', 0)}/{summary.get('total_endpoints', 0)} endpoints",
-            "Response Codes": "",
-            "Covered": f"{summary.get('coverage_percentage', 0):.1f}%",
-        }
-        df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
+        rows.append(
+            {
+                "Path": "TOTAL",
+                "Hit Count": summary.get("total_requests", 0),
+                "Method": "",
+                "Method Count": f"{summary.get('covered_endpoints', 0)}/{summary.get('total_endpoints', 0)} endpoints",
+                "Response Codes": "",
+                "Covered": f"{summary.get('coverage_percentage', 0):.1f}%",
+            }
+        )
 
-        return df
+        return fieldnames, rows
 
     @classmethod
-    def _to_dataframe_split(cls, report_data: dict[str, Any]) -> pd.DataFrame:
-        """Convert split-by-origin report to DataFrame (grouped by path)."""
+    def _to_rows_split(cls, report_data: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+        """Convert split-by-origin report to (fieldnames, rows) grouped by path."""
+        fieldnames: list[str] = [
+            "Origin",
+            "Path",
+            "Hit Count",
+            "Method",
+            "Method Count",
+            "Response Codes",
+            "Covered",
+        ]
         origins = report_data.get("origins", {})
         swagger_source = report_data.get("swagger_source", "")
 
-        rows = []
+        rows: list[dict[str, Any]] = []
 
         # Add swagger source header row
         if swagger_source:
@@ -146,31 +157,28 @@ class CsvWriter:
                 }
             )
 
-        # Create DataFrame with Origin as first column
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            cols = ["Origin", "Path", "Hit Count", "Method", "Method Count", "Response Codes", "Covered"]
-            df = df[[c for c in cols if c in df.columns]]
-
         # Add combined summary row
         combined = report_data.get("combined_summary", {})
-        summary_row = {
-            "Origin": "ALL",
-            "Path": "TOTAL",
-            "Hit Count": combined.get("total_requests", 0),
-            "Method": "",
-            "Method Count": f"{combined.get('covered_endpoints', 0)}/{combined.get('total_endpoints', 0)} endpoints",
-            "Response Codes": "",
-            "Covered": f"{combined.get('coverage_percentage', 0):.1f}%",
-        }
-        df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
+        rows.append(
+            {
+                "Origin": "ALL",
+                "Path": "TOTAL",
+                "Hit Count": combined.get("total_requests", 0),
+                "Method": "",
+                "Method Count": (
+                    f"{combined.get('covered_endpoints', 0)}/{combined.get('total_endpoints', 0)} endpoints"
+                ),
+                "Response Codes": "",
+                "Covered": f"{combined.get('coverage_percentage', 0):.1f}%",
+            }
+        )
 
-        return df
+        return fieldnames, rows
 
     @classmethod
     def _path_to_rows(cls, path_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Convert grouped path data to CSV rows."""
-        rows = []
+        rows: list[dict[str, Any]] = []
         path = path_data["path"]
         total_hit_count = path_data["hit_count"]
         methods = path_data.get("methods", [])
@@ -205,5 +213,9 @@ class CsvWriter:
         Returns:
             CSV string
         """
-        df = cls._to_dataframe(report_data)
-        return df.to_csv(index=False)
+        fieldnames, rows = cls._build_rows(report_data)
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+        return buf.getvalue()

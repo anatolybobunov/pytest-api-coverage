@@ -1,0 +1,151 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Example E-Commerce API",
+    "version": "1.0.0",
+    "description": "Demo API for coverage report testing"
+  },
+  "basePath": "",
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "List all users",
+        "responses": {"200": {"description": "OK"}, "401": {"description": "Unauthorized"}}
+      },
+      "post": {
+        "summary": "Create user",
+        "responses": {"201": {"description": "Created"}, "400": {"description": "Bad Request"}}
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "responses": {"200": {"description": "OK"}, "404": {"description": "Not Found"}}
+      },
+      "put": {
+        "summary": "Update user",
+        "responses": {"200": {"description": "OK"}, "404": {"description": "Not Found"}}
+      },
+      "delete": {
+        "summary": "Delete user",
+        "responses": {"204": {"description": "No Content"}, "404": {"description": "Not Found"}}
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List all products",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "summary": "Create product",
+        "responses": {"201": {"description": "Created"}, "400": {"description": "Bad Request"}}
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "summary": "Get product by ID",
+        "responses": {"200": {"description": "OK"}, "404": {"description": "Not Found"}}
+      },
+      "put": {
+        "summary": "Update product",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "patch": {
+        "summary": "Partial update product",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "delete": {
+        "summary": "Delete product",
+        "responses": {"204": {"description": "No Content"}}
+      }
+    },
+    "/orders": {
+      "get": {
+        "summary": "List all orders",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "summary": "Create order",
+        "responses": {"201": {"description": "Created"}, "400": {"description": "Bad Request"}}
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Get order by ID",
+        "responses": {"200": {"description": "OK"}, "404": {"description": "Not Found"}}
+      },
+      "put": {
+        "summary": "Update order",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "delete": {
+        "summary": "Cancel order",
+        "responses": {"204": {"description": "No Content"}}
+      }
+    },
+    "/orders/{id}/items": {
+      "get": {
+        "summary": "List order items",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "summary": "Add item to order",
+        "responses": {"201": {"description": "Created"}}
+      }
+    },
+    "/categories": {
+      "get": {
+        "summary": "List all categories",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "summary": "Create category",
+        "responses": {"201": {"description": "Created"}}
+      }
+    },
+    "/categories/{id}": {
+      "get": {
+        "summary": "Get category by ID",
+        "responses": {"200": {"description": "OK"}, "404": {"description": "Not Found"}}
+      },
+      "put": {
+        "summary": "Update category",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "delete": {
+        "summary": "Delete category",
+        "responses": {"204": {"description": "No Content"}}
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User login",
+        "responses": {"200": {"description": "OK"}, "401": {"description": "Unauthorized"}}
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "User logout",
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Refresh token",
+        "responses": {"200": {"description": "OK"}, "401": {"description": "Unauthorized"}}
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Get metrics",
+        "responses": {"200": {"description": "OK"}}
+      }
+    }
+  }
+}

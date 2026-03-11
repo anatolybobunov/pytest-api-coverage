@@ -1,0 +1,42 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "HTTPBin API",
+    "version": "1.0.0"
+  },
+  "basePath": "",
+  "paths": {
+    "/get": {
+      "get": {
+        "summary": "GET request",
+        "responses": {
+          "200": {"description": "OK"}
+        }
+      }
+    },
+    "/post": {
+      "post": {
+        "summary": "POST request",
+        "responses": {
+          "200": {"description": "OK"}
+        }
+      }
+    },
+    "/put": {
+      "put": {
+        "summary": "PUT request",
+        "responses": {
+          "200": {"description": "OK"}
+        }
+      }
+    },
+    "/delete": {
+      "delete": {
+        "summary": "DELETE request",
+        "responses": {
+          "200": {"description": "OK"}
+        }
+      }
+    }
+  }
+}

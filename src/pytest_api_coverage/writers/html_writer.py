@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Template
+from jinja2 import Environment
 
 CSS_STYLES = """
         :root {
@@ -560,8 +560,10 @@ class HtmlWriter:
         """Render report data to HTML string."""
         generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
+        env = Environment(autoescape=True)
+
         if report_data.get("split_by_origin"):
-            template = Template(HTML_SPLIT_TEMPLATE)
+            template = env.from_string(HTML_SPLIT_TEMPLATE)
             return template.render(
                 swagger_source=report_data.get("swagger_source", ""),
                 combined_summary=report_data.get("combined_summary", {}),
@@ -569,7 +571,7 @@ class HtmlWriter:
                 generated_at=generated_at,
             )
 
-        template = Template(HTML_TEMPLATE)
+        template = env.from_string(HTML_TEMPLATE)
         return template.render(
             swagger_source=report_data.get("swagger_source", ""),
             summary=report_data.get("summary", {}),

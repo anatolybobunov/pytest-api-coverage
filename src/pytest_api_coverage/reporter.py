@@ -3,109 +3,11 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCoverage
 from pytest_api_coverage.schemas import SwaggerSpec
-
-
-@dataclass
-class EndpointCoverage:
-    """Coverage data for a single API endpoint."""
-
-    method: str
-    path: str
-    hit_count: int = 0
-    response_codes: dict[int, int] = field(default_factory=dict)  # C3: status_code -> count
-    test_names: set[str] = field(default_factory=set)
-
-    @property
-    def is_covered(self) -> bool:
-        """Check if endpoint has been hit at least once."""
-        return self.hit_count > 0
-
-    def record_hit(self, status_code: int, test_name: str | None = None) -> None:
-        """Record a hit on this endpoint.
-
-        Args:
-            status_code: HTTP response status code
-            test_name: Name of the test that made the request
-        """
-        self.hit_count += 1
-        self.response_codes[status_code] = self.response_codes.get(status_code, 0) + 1
-        if test_name:
-            self.test_names.add(test_name)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for report output."""
-        return {
-            "method": self.method,
-            "path": self.path,
-            "hit_count": self.hit_count,
-            "is_covered": self.is_covered,
-            "response_codes": self.response_codes,  # C3: dict[int, int]
-            "test_names": sorted(self.test_names),
-        }
-
-
-@dataclass
-class MethodCoverage:
-    """Coverage data for a single method on an endpoint path."""
-
-    method: str
-    hit_count: int = 0
-    response_codes: dict[int, int] = field(default_factory=dict)
-    test_names: set[str] = field(default_factory=set)
-
-    @property
-    def is_covered(self) -> bool:
-        """Check if method has been hit at least once."""
-        return self.hit_count > 0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for report output."""
-        return {
-            "method": self.method,
-            "hit_count": self.hit_count,
-            "is_covered": self.is_covered,
-            "response_codes": self.response_codes,
-            "test_names": sorted(self.test_names),
-        }
-
-
-@dataclass
-class PathCoverage:
-    """Coverage data for an API path (grouped by methods)."""
-
-    path: str
-    methods: list[MethodCoverage] = field(default_factory=list)
-
-    @property
-    def total_hit_count(self) -> int:
-        """Total hits across all methods."""
-        return sum(m.hit_count for m in self.methods)
-
-    @property
-    def is_covered(self) -> bool:
-        """Check if any method has been hit."""
-        return any(m.is_covered for m in self.methods)
-
-    @property
-    def all_methods_covered(self) -> bool:
-        """Check if all methods have been hit."""
-        return all(m.is_covered for m in self.methods)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for report output."""
-        return {
-            "path": self.path,
-            "hit_count": self.total_hit_count,
-            "is_covered": self.is_covered,
-            "all_methods_covered": self.all_methods_covered,
-            "methods": [m.to_dict() for m in self.methods],
-        }
 
 
 class CoverageReporter:
@@ -449,8 +351,6 @@ class CoverageReporter:
         origins_data: dict[str, dict[str, Any]] = {}
 
         # Aggregate stats for combined summary
-        total_endpoints = 0
-        total_covered = 0
         total_requests = 0
 
         for origin, coverage in sorted(self._coverage_by_origin.items()):
@@ -460,16 +360,17 @@ class CoverageReporter:
                 "endpoints": self._generate_endpoints_list(coverage),
             }
 
-            # For combined summary, use max of endpoints (since all origins have same spec)
-            if total_endpoints == 0:
-                total_endpoints = summary["total_endpoints"]
-
-            total_covered = max(total_covered, summary["covered_endpoints"])
             total_requests += summary["total_requests"]
 
-        # If no origins were processed, create empty structure
-        if not origins_data:
-            total_endpoints = len(self.swagger_spec.endpoints)
+        # Collect union of covered endpoint keys across all origins
+        all_covered_keys: set[str] = set()
+        for origin_cov in self._coverage_by_origin.values():
+            for key, ep in origin_cov.items():
+                if ep.is_covered:
+                    all_covered_keys.add(key)
+
+        total_endpoints = len(self.swagger_spec.endpoints)
+        total_covered = len(all_covered_keys)
 
         return {
             "swagger_source": self.swagger_spec.source,
@@ -484,34 +385,3 @@ class CoverageReporter:
             },
         }
 
-    def write_reports(self, output_dir: str | Path, formats: set[str]) -> list[Path]:
-        """Write coverage reports in specified formats.
-
-        Args:
-            output_dir: Directory for output files
-            formats: Set of format names (json, csv, html)
-
-        Returns:
-            List of paths to written files
-        """
-        from pytest_api_coverage.writers import CsvWriter, HtmlWriter, JsonWriter
-
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        report_data = self.generate_report()
-        written_files: list[Path] = []
-
-        if "json" in formats:
-            path = JsonWriter.write(report_data, output_dir / "coverage.json")
-            written_files.append(path)
-
-        if "csv" in formats:
-            path = CsvWriter.write(report_data, output_dir / "coverage.csv")
-            written_files.append(path)
-
-        if "html" in formats:
-            path = HtmlWriter.write(report_data, output_dir / "coverage.html")
-            written_files.append(path)
-
-        return written_files

@@ -21,24 +21,21 @@ class RequestsAdapter:
     Thread-safe with install/uninstall support.
     """
 
-    _lock = threading.Lock()
-    _installed: bool = False
-    _original_request: Callable[..., Any] | None = None
-    _collector: CoverageCollector | None = None
+    def __init__(self, collector: CoverageCollector) -> None:
+        self._collector = collector
+        self._lock = threading.Lock()
+        self._installed: bool = False
+        self._original_request: Callable[..., Any] | None = None
 
-    @classmethod
-    def install(cls, collector: CoverageCollector) -> None:
-        """Install adapter to intercept requests library traffic.
-
-        Args:
-            collector: CoverageCollector instance to record interactions
-        """
-        with cls._lock:
-            if cls._installed:
+    def install(self) -> None:
+        """Install adapter to intercept requests library traffic."""
+        with self._lock:
+            if self._installed:
                 return
 
-            cls._collector = collector
-            cls._original_request = requests.sessions.Session.request
+            collector = self._collector
+            original = requests.sessions.Session.request
+            self._original_request = original
 
             def patched_request(
                 self: requests.Session,
@@ -49,14 +46,13 @@ class RequestsAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                # Call original method
-                response = cls._original_request(self, method, url, **kwargs)  # type: ignore[misc]
+                response = original(self, method, url, **kwargs)  # type: ignore[misc]
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
-                # Record interaction (never break tests)
                 try:
-                    cls._record_interaction(
+                    _record_requests_interaction(
+                        collector=collector,
                         method=method,
                         url=url,
                         kwargs=kwargs,
@@ -67,101 +63,96 @@ class RequestsAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response
+                return response  # type: ignore[no-any-return]
 
-            requests.sessions.Session.request = patched_request  # type: ignore[method-assign]
-            cls._installed = True
+            requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
+            self._installed = True
 
-    @classmethod
-    def uninstall(cls) -> None:
+    def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
-        with cls._lock:
-            if not cls._installed:
+        with self._lock:
+            if not self._installed:
                 return
 
-            if cls._original_request is not None:
-                requests.sessions.Session.request = cls._original_request  # type: ignore[method-assign]
-                cls._original_request = None
+            if self._original_request is not None:
+                requests.sessions.Session.request = self._original_request  # type: ignore[method-assign]
+                self._original_request = None
 
-            cls._collector = None
-            cls._installed = False
+            self._installed = False
 
-    @classmethod
-    def is_installed(cls) -> bool:
+    def is_installed(self) -> bool:
         """Check if adapter is currently installed."""
-        return cls._installed
+        return self._installed
 
-    @classmethod
-    def _record_interaction(
-        cls,
-        method: str,
-        url: str,
-        kwargs: dict[str, Any],
-        response: requests.Response,
-        timestamp: datetime,
-        duration_ms: float,
-    ) -> None:
-        """Record HTTP interaction to collector."""
-        if cls._collector is None:
-            return
 
-        # Parse URL
-        parsed = urlparse(url)
+def _record_requests_interaction(
+    collector: CoverageCollector,
+    method: str,
+    url: str,
+    kwargs: dict[str, Any],
+    response: requests.Response,
+    timestamp: datetime,
+    duration_ms: float,
+) -> None:
+    """Record HTTP interaction to collector."""
+    # Parse URL
+    parsed = urlparse(url)
+    final_url = str(response.url) if response.url else url
+    final_parsed = urlparse(final_url)
 
-        # Extract headers from response.request (contains actual sent headers)
-        req_headers: dict[str, str] = {}
-        if response.request is not None:
-            req_headers = {k: v for k, v in response.request.headers.items()}
+    # Extract headers from response.request (contains actual sent headers)
+    req_headers: dict[str, str] = {}
+    if response.request is not None:
+        req_headers = {k: v for k, v in response.request.headers.items()}
 
-        # Determine content type
-        content_type = None
-        for key, value in req_headers.items():
-            if key.lower() == "content-type":
-                content_type = value
-                break
+    # Determine content type
+    content_type = None
+    for key, value in req_headers.items():
+        if key.lower() == "content-type":
+            content_type = value
+            break
 
-        # Extract query params
-        query_params: dict[str, Any] = {}
-        if parsed.query:
-            query_params = parse_qs(parsed.query)
-        if kwargs.get("params"):
-            params = kwargs["params"]
-            if isinstance(params, dict):
-                query_params.update(params)
+    # Extract query params
+    query_params: dict[str, Any] = {}
+    if parsed.query:
+        query_params = parse_qs(parsed.query)
+    if kwargs.get("params"):
+        params = kwargs["params"]
+        if isinstance(params, dict):
+            query_params.update(params)
 
-        # Extract body
-        body = kwargs.get("json") or kwargs.get("data")
+    # Extract body
+    body = kwargs.get("json") or kwargs.get("data")
 
-        # Build request model
-        http_request = HTTPRequest(
-            method=method.upper(),
-            url=str(response.url) if response.url else url,
-            path=parsed.path or "/",
-            host=parsed.netloc,
-            headers=req_headers,
-            query_params=query_params,
-            body=body,
-            content_type=content_type,
-        )
+    # Build request model
+    http_request = HTTPRequest(
+        method=method.upper(),
+        url=final_url,
+        path=final_parsed.path or "/",
+        host=final_parsed.netloc,
+        headers=req_headers,
+        query_params=query_params,
+        body=body,
+        content_type=content_type,
+    )
 
-        # Extract response headers
-        resp_headers = {k: v for k, v in response.headers.items()}
-        resp_content_type = response.headers.get("content-type")
+    # Extract response headers
+    resp_headers = {k: v for k, v in response.headers.items()}
+    resp_content_type = response.headers.get("content-type")
 
-        # Build response model
-        http_response = HTTPResponse(
-            status_code=response.status_code,
-            headers=resp_headers,
-            content_type=resp_content_type,
-            body_size=len(response.content) if response.content else 0,
-        )
+    # Build response model
+    http_response = HTTPResponse(
+        status_code=response.status_code,
+        headers=resp_headers,
+        content_type=resp_content_type,
+        body_size=len(response.content) if response.content else 0,
+    )
 
-        # Create and record interaction
-        interaction = HTTPInteraction(
-            request=http_request,
-            response=http_response,
-            timestamp=timestamp,
-            duration_ms=duration_ms,
-        )
+    interaction = HTTPInteraction(
+        request=http_request,
+        response=http_response,
+        timestamp=timestamp,
+        duration_ms=duration_ms,
+    )
 
-        cls._collector.record(interaction)
+    collector.record(interaction)

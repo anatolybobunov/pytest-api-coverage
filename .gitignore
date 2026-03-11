@@ -17,3 +17,5 @@ coverage-output/
 
 # uv
 .venv/
+
+.planning/

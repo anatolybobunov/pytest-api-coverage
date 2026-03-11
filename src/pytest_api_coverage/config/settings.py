@@ -100,8 +100,8 @@ class CoverageSettings:
             output_dir=Path(config.getoption("coverage_output", "coverage-output")),
             formats=config.getoption("coverage_format", "json,csv,html"),
             base_url=config.getoption("coverage_base_url", None),
-            include_base_urls=config.getoption("coverage_include_base_url", None) or "",
-            strip_prefixes=config.getoption("coverage_strip_prefix", None) or "",
+            include_base_urls=config.getoption("coverage_include_base_url", None) or "",  # type: ignore[arg-type]
+            strip_prefixes=config.getoption("coverage_strip_prefix", None) or "",  # type: ignore[arg-type]
             split_by_origin=config.getoption("coverage_split_by_origin", False),
         )
 

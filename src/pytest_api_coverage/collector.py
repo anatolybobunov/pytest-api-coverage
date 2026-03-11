@@ -42,20 +42,24 @@ class CoverageCollector:
 
         If test_name is not set on interaction, uses current test context.
         """
-        if self._current_test and interaction.test_name is None:
-            interaction = HTTPInteraction(
-                request=interaction.request,
-                response=interaction.response,
-                timestamp=interaction.timestamp,
-                duration_ms=interaction.duration_ms,
-                test_name=self._current_test,
-            )
+        if interaction.test_name is None:
+            with self._lock:
+                current = self._current_test
+            if current:
+                interaction = HTTPInteraction(
+                    request=interaction.request,
+                    response=interaction.response,
+                    timestamp=interaction.timestamp,
+                    duration_ms=interaction.duration_ms,
+                    test_name=current,
+                )
         self._queue.put(interaction)
 
     def has_data(self) -> bool:
         """Check if any data has been collected."""
         self._drain_queue()
-        return len(self._data) > 0
+        with self._lock:
+            return len(self._data) > 0
 
     def get_data(self) -> list[dict[str, Any]]:
         """Return all collected data as serializable dicts."""

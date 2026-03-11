@@ -29,30 +29,27 @@ class HttpxAdapter:
     Thread-safe with install/uninstall support.
     """
 
-    _lock = threading.Lock()
-    _installed: bool = False
-    _original_request: Callable[..., Any] | None = None
-    _original_async_request: Callable[..., Any] | None = None
-    _collector: CoverageCollector | None = None
+    def __init__(self, collector: CoverageCollector) -> None:
+        self._collector = collector
+        self._lock = threading.Lock()
+        self._installed: bool = False
+        self._original_request: Callable[..., Any] | None = None
+        self._original_async_request: Callable[..., Any] | None = None
 
-    @classmethod
-    def install(cls, collector: CoverageCollector) -> None:
-        """Install adapter to intercept httpx library traffic.
-
-        Args:
-            collector: CoverageCollector instance to record interactions
-        """
+    def install(self) -> None:
+        """Install adapter to intercept httpx library traffic."""
         if not HTTPX_AVAILABLE:
             return  # httpx not installed, skip silently
 
-        with cls._lock:
-            if cls._installed:
+        with self._lock:
+            if self._installed:
                 return
 
-            cls._collector = collector
+            collector = self._collector
 
             # Patch sync Client.request
-            cls._original_request = httpx.Client.request
+            original = httpx.Client.request
+            self._original_request = original
 
             def patched_request(
                 self: "httpx.Client",
@@ -63,12 +60,13 @@ class HttpxAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                response = cls._original_request(self, method, url, **kwargs)  # type: ignore[misc]
+                response = original(self, method, url, **kwargs)  # type: ignore[misc]
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
                 try:
-                    cls._record_interaction(
+                    _record_httpx_interaction(
+                        collector=collector,
                         method=method,
                         url=str(url),
                         response=response,
@@ -78,12 +76,13 @@ class HttpxAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response
+                return response  # type: ignore[no-any-return]
 
             httpx.Client.request = patched_request  # type: ignore[method-assign]
 
             # Patch async AsyncClient.request
-            cls._original_async_request = httpx.AsyncClient.request
+            original_async = httpx.AsyncClient.request
+            self._original_async_request = original_async
 
             async def patched_async_request(
                 self: "httpx.AsyncClient",
@@ -94,12 +93,13 @@ class HttpxAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                response = await cls._original_async_request(self, method, url, **kwargs)  # type: ignore[misc]
+                response = await original_async(self, method, url, **kwargs)  # type: ignore[misc]
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
                 try:
-                    cls._record_interaction(
+                    _record_httpx_interaction(
+                        collector=collector,
                         method=method,
                         url=str(url),
                         response=response,
@@ -109,115 +109,108 @@ class HttpxAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response
+                return response  # type: ignore[no-any-return]
 
             httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
 
-            cls._installed = True
+            self._installed = True
 
-    @classmethod
-    def uninstall(cls) -> None:
+    def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
         if not HTTPX_AVAILABLE:
             return
 
-        with cls._lock:
-            if not cls._installed:
+        with self._lock:
+            if not self._installed:
                 return
 
-            if cls._original_request is not None:
-                httpx.Client.request = cls._original_request  # type: ignore[method-assign]
-                cls._original_request = None
+            if self._original_request is not None:
+                httpx.Client.request = self._original_request  # type: ignore[method-assign]
+                self._original_request = None
 
-            if cls._original_async_request is not None:
-                httpx.AsyncClient.request = cls._original_async_request  # type: ignore[method-assign]
-                cls._original_async_request = None
+            if self._original_async_request is not None:
+                httpx.AsyncClient.request = self._original_async_request  # type: ignore[method-assign]
+                self._original_async_request = None
 
-            cls._collector = None
-            cls._installed = False
+            self._installed = False
 
-    @classmethod
-    def is_installed(cls) -> bool:
+    def is_installed(self) -> bool:
         """Check if adapter is currently installed."""
-        return cls._installed
+        return self._installed
 
-    @classmethod
-    def _record_interaction(
-        cls,
-        method: str,
-        url: str,
-        response: "httpx.Response",
-        timestamp: datetime,
-        duration_ms: float,
-    ) -> None:
-        """Record HTTP interaction to collector."""
-        if cls._collector is None:
-            return
 
-        # Parse URL from response (contains resolved URL with base_url)
-        actual_url = str(response.url)
-        parsed = urlparse(actual_url)
+def _record_httpx_interaction(
+    collector: CoverageCollector,
+    method: str,
+    url: str,
+    response: "httpx.Response",
+    timestamp: datetime,
+    duration_ms: float,
+) -> None:
+    """Record HTTP interaction to collector."""
+    # Parse URL from response (contains resolved URL with base_url)
+    actual_url = str(response.url)
+    parsed = urlparse(actual_url)
 
-        # Extract headers from response.request
-        req_headers = {k: v for k, v in response.request.headers.items()}
+    # Extract headers from response.request
+    req_headers = {k: v for k, v in response.request.headers.items()}
 
-        # Determine content type
-        content_type = None
-        for key, value in req_headers.items():
-            if key.lower() == "content-type":
-                content_type = value
-                break
+    # Determine content type
+    content_type = None
+    for key, value in req_headers.items():
+        if key.lower() == "content-type":
+            content_type = value
+            break
 
-        # Extract query params from URL
-        query_params: dict[str, Any] = {}
-        if parsed.query:
-            query_params = parse_qs(parsed.query)
+    # Extract query params from URL
+    query_params: dict[str, Any] = {}
+    if parsed.query:
+        query_params = parse_qs(parsed.query)
 
-        # Extract body from request
-        body: Any = None
-        if response.request.content:
-            try:
-                body = response.request.content.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                body = f"<binary: {len(response.request.content)} bytes>"
-
-        # Build request model
-        http_request = HTTPRequest(
-            method=method.upper(),
-            url=actual_url,
-            path=parsed.path or "/",
-            host=parsed.netloc,
-            headers=req_headers,
-            query_params=query_params,
-            body=body,
-            content_type=content_type,
-        )
-
-        # Extract response headers
-        resp_headers = {k: v for k, v in response.headers.items()}
-        resp_content_type = response.headers.get("content-type")
-
-        # Calculate body size
-        body_size = 0
+    # Extract body from request
+    body: Any = None
+    if response.request.content:
         try:
-            body_size = len(response.content)
-        except Exception:
-            pass
+            body = response.request.content.decode("utf-8")
+        except (UnicodeDecodeError, AttributeError):
+            body = f"<binary: {len(response.request.content)} bytes>"
 
-        # Build response model
-        http_response = HTTPResponse(
-            status_code=response.status_code,
-            headers=resp_headers,
-            content_type=resp_content_type,
-            body_size=body_size,
-        )
+    # Build request model
+    http_request = HTTPRequest(
+        method=method.upper(),
+        url=actual_url,
+        path=parsed.path or "/",
+        host=parsed.netloc,
+        headers=req_headers,
+        query_params=query_params,
+        body=body,
+        content_type=content_type,
+    )
 
-        # Create and record interaction
-        interaction = HTTPInteraction(
-            request=http_request,
-            response=http_response,
-            timestamp=timestamp,
-            duration_ms=duration_ms,
-        )
+    # Extract response headers
+    resp_headers = {k: v for k, v in response.headers.items()}
+    resp_content_type = response.headers.get("content-type")
 
-        cls._collector.record(interaction)
+    # Calculate body size
+    body_size = 0
+    try:
+        body_size = len(response.content)
+    except Exception:
+        pass
+
+    # Build response model
+    http_response = HTTPResponse(
+        status_code=response.status_code,
+        headers=resp_headers,
+        content_type=resp_content_type,
+        body_size=body_size,
+    )
+
+    interaction = HTTPInteraction(
+        request=http_request,
+        response=http_response,
+        timestamp=timestamp,
+        duration_ms=duration_ms,
+    )
+
+    collector.record(interaction)
