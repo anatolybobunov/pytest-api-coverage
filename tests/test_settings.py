@@ -251,6 +251,50 @@ class TestCoverageSettingsIsEnabled:
         assert settings.is_enabled() is False
 
 
+class TestSpecConfigRoundTrip:
+    """Tests for SpecConfig xdist serialisation round-trip (COMPAT-03)."""
+
+    def test_round_trip_with_path(self):
+        from pytest_api_coverage.config.settings import SpecConfig
+        from pathlib import Path
+        original = SpecConfig(name="auth", urls=["https://auth.example.com"], path=Path("/tmp/auth.yaml"))
+        data = original.to_dict()
+        # Path must be str in dict (JSON-safe)
+        assert isinstance(data["path"], str)
+        restored = SpecConfig.from_dict(data)
+        assert restored.name == "auth"
+        assert restored.urls == ["https://auth.example.com"]
+        assert restored.path == Path("/tmp/auth.yaml")
+        assert restored.url is None
+
+    def test_round_trip_with_url(self):
+        from pytest_api_coverage.config.settings import SpecConfig
+        original = SpecConfig(
+            name="orders",
+            urls=["https://orders.example.com/api"],
+            url="https://remote.example.com/spec.yaml",
+        )
+        data = original.to_dict()
+        restored = SpecConfig.from_dict(data)
+        assert restored.name == "orders"
+        assert restored.url == "https://remote.example.com/spec.yaml"
+        assert restored.path is None
+
+    def test_round_trip_multi_url(self):
+        from pytest_api_coverage.config.settings import SpecConfig
+        original = SpecConfig(name="svc", urls=["https://a.example.com", "https://b.example.com"])
+        restored = SpecConfig.from_dict(original.to_dict())
+        assert restored.urls == ["https://a.example.com", "https://b.example.com"]
+
+    def test_path_none_round_trips(self):
+        from pytest_api_coverage.config.settings import SpecConfig
+        original = SpecConfig(name="svc", urls=["https://svc.example.com"])
+        data = original.to_dict()
+        assert data["path"] is None
+        restored = SpecConfig.from_dict(data)
+        assert restored.path is None
+
+
 class TestCoverageSettingsFromPytestConfig:
     """Tests for from_pytest_config (requires mocker)."""
 
