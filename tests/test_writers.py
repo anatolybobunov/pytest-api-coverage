@@ -162,6 +162,37 @@ class TestCsvWriter:
         assert total_row["Covered"] == "50.0%"
 
 
+class TestWriteReportsPrefix:
+    """Tests for write_reports() optional prefix parameter (SET-02)."""
+
+    def test_prefix_none_produces_standard_names(self, tmp_path, sample_report):
+        from pytest_api_coverage.writers import write_reports
+        files = write_reports(sample_report, tmp_path, {"json", "csv", "html"}, prefix=None)
+        names = {f.name for f in files}
+        assert "coverage.json" in names
+        assert "coverage.csv" in names
+        assert "coverage.html" in names
+
+    def test_prefix_auth_produces_prefixed_names(self, tmp_path, sample_report):
+        from pytest_api_coverage.writers import write_reports
+        files = write_reports(sample_report, tmp_path, {"json", "csv", "html"}, prefix="auth")
+        names = {f.name for f in files}
+        assert "auth-coverage.json" in names
+        assert "auth-coverage.csv" in names
+        assert "auth-coverage.html" in names
+
+    def test_prefix_orders_produces_prefixed_names(self, tmp_path, sample_report):
+        from pytest_api_coverage.writers import write_reports
+        files = write_reports(sample_report, tmp_path, {"json"}, prefix="orders")
+        assert files[0].name == "orders-coverage.json"
+
+    def test_no_prefix_kwarg_backward_compat(self, tmp_path, sample_report):
+        from pytest_api_coverage.writers import write_reports
+        # Positional-only call — must still work with no prefix arg
+        files = write_reports(sample_report, tmp_path, {"json"})
+        assert files[0].name == "coverage.json"
+
+
 class TestHtmlWriter:
     """Tests for HtmlWriter."""
 
