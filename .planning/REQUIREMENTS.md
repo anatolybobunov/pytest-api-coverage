@@ -15,8 +15,8 @@
 
 ### Orchestration
 
-- [ ] **ORC-01**: Плагин создаёт отдельный `CoverageReporter` для каждой спеки, фильтруя запросы по URL этой спеки
-- [ ] **ORC-02**: HTTP-запросы, не совпадающие ни с одним URL из конфига, игнорируются (не вызывают ошибок)
+- [x] **ORC-01**: Плагин создаёт отдельный `CoverageReporter` для каждой спеки, фильтруя запросы по URL этой спеки
+- [x] **ORC-02**: HTTP-запросы, не совпадающие ни с одним URL из конфига, игнорируются (не вызывают ошибок)
 - [ ] **ORC-03**: Плагин генерирует отдельный набор файлов отчётов для каждой спеки
 
 ### Output
@@ -68,8 +68,8 @@
 | CFG-05 | Phase 1: Config and Activation | Complete |
 | SET-01 | Phase 1: Config and Activation | Complete |
 | SET-02 | Phase 2: Orchestration and File Output | Complete |
-| ORC-01 | Phase 2: Orchestration and File Output | Pending |
-| ORC-02 | Phase 2: Orchestration and File Output | Pending |
+| ORC-01 | Phase 2: Orchestration and File Output | Complete |
+| ORC-02 | Phase 2: Orchestration and File Output | Complete |
 | ORC-03 | Phase 2: Orchestration and File Output | Pending |
 | OUT-01 | Phase 2: Orchestration and File Output | Pending |
 | COMPAT-03 | Phase 2: Orchestration and File Output | Complete |
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after 02-01 plan completion (SET-02, COMPAT-03 complete)*
+*Last updated: 2026-03-11 after 02-02 plan completion (ORC-01, ORC-02 complete)*

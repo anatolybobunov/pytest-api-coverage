@@ -44,7 +44,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — write_reports() prefix param + SpecConfig round-trip tests (SET-02, COMPAT-03, TDD)
-- [ ] 02-02-PLAN.md — MultiSpecOrchestrator + per-spec reporter routing (ORC-01, ORC-02, ORC-03, TDD)
+- [x] 02-02-PLAN.md — MultiSpecOrchestrator + per-spec reporter routing (ORC-01, ORC-02, ORC-03, TDD)
 - [ ] 02-03-PLAN.md — Wire orchestrator into plugin.py (OUT-01)
 - [ ] 02-04-PLAN.md — xdist serialisation end-to-end validation (COMPAT-03)
 
@@ -64,5 +64,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Config and Activation | 4/4 | Complete   | 2026-03-11 |
-| 2. Orchestration and File Output | 1/4 | In Progress | - |
+| 2. Orchestration and File Output | 2/4 | In Progress | - |
 | 3. Terminal Summary and Compatibility | 0/? | Not started | - |
