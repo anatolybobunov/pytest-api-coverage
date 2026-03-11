@@ -32,6 +32,8 @@ def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> A
 
     mock_config = mocker.Mock()
     mock_config.getoption.side_effect = lambda key, default=None: defaults.get(key, default)
+    # rootpath must be a real Path so _discover_config_file can use / operator
+    mock_config.rootpath = Path("/tmp")
     return mock_config
 
 

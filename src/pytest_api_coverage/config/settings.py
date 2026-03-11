@@ -171,8 +171,7 @@ class CoverageSettings:
         """
         swagger = config.getoption("swagger", None)
 
-        # Read new multi-spec CLI options
-        coverage_config = config.getoption("coverage_config", None)  # noqa: F841
+        # Read multi-spec CLI options
         spec_name = config.getoption("coverage_spec_name", None)
         spec_path = config.getoption("coverage_spec_path", None)
         spec_url = config.getoption("coverage_spec_url", None)
@@ -204,9 +203,36 @@ class CoverageSettings:
                         url=spec_url,
                     )
                 ]
-        else:
-            # TODO(Plan 04): add config file auto-discovery here
-            pass
+        elif swagger is None:
+            from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
+                _discover_config_file,
+                load_multi_spec_config,
+            )
+
+            explicit_config = config.getoption("coverage_config", None)
+
+            if explicit_config:
+                config_path = Path(explicit_config)
+                if not config_path.exists():
+                    import pytest as _pytest  # noqa: PLC0415
+                    _pytest.exit(
+                        f"[api-coverage] Config file not found: {config_path}",
+                        returncode=1,
+                    )
+                specs, top_level = load_multi_spec_config(config_path)
+            else:
+                discovered = _discover_config_file(config.rootpath)
+                if discovered:
+                    specs, top_level = load_multi_spec_config(discovered)
+
+            # Validate that each spec's path exists on disk
+            for spec in specs:
+                if spec.path and not Path(str(spec.path)).exists():
+                    import pytest as _pytest  # noqa: PLC0415
+                    _pytest.exit(
+                        f"[api-coverage] Spec file not found: {spec.path} (spec: '{spec.name}')",
+                        returncode=1,
+                    )
 
         return cls(
             swagger=swagger,
