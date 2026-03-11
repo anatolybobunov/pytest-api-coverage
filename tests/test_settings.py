@@ -285,7 +285,14 @@ class TestCoverageSettingsFromPytestConfig:
             "coverage_include_base_url": None,
             "coverage_strip_prefix": None,
             "coverage_split_by_origin": False,
+            "coverage_config": None,
+            "coverage_spec_name": None,
+            "coverage_spec_path": None,
+            "coverage_spec_url": None,
+            "coverage_spec_base_url": None,
         }.get(key, default)
+        # rootpath must be a real Path so _discover_config_file can use / operator
+        mock_config.rootpath = Path("/tmp")
 
         settings = CoverageSettings.from_pytest_config(mock_config)
 
