@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-config-and-activation/01-02-PLAN.md
-last_updated: "2026-03-11T12:08:10.898Z"
+stopped_at: Completed 01-config-and-activation/01-03-PLAN.md
+last_updated: "2026-03-11T12:09:43.082Z"
 last_activity: 2026-03-11 — Completed 01-01 SpecConfig dataclass
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 25
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 3 (Config and Activation)
-Plan: 1 of 4 in current phase (01-01 complete)
+Plan: 3 of 4 in current phase (01-03 complete)
 Status: In Progress
-Last activity: 2026-03-11 — Completed 01-01 SpecConfig dataclass
+Last activity: 2026-03-11 — Completed 01-03 CoverageSettings extension + CLI flags
 
-Progress: [███░░░░░░░] 25%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [███░░░░░░░] 25%
 
 *Updated after each plan completion*
 | Phase 01-config-and-activation P02 | 2 | 1 tasks | 2 files |
+| Phase 01-config-and-activation P03 | 3 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,9 @@ Progress: [███░░░░░░░] 25%
 - [Phase 01-config-and-activation]: print() used for warnings in multi_spec loader (not warnings.warn) to match project convention
 - [Phase 01-config-and-activation]: load_multi_spec_config returns ([], {}) on parse failure — never raises — so pytest_configure handles absence gracefully
 - [Phase 01-config-and-activation]: top_level dict excludes specs key so callers receive only output_dir/formats settings
+- [Phase 01-config-and-activation]: SpecConfig moved before CoverageSettings in settings.py to resolve forward reference for specs field annotation
+- [Phase 01-config-and-activation]: --coverage-spec-base-url uses action=append with default=None to prevent argparse list mutation across test runs
+- [Phase 01-config-and-activation]: Swagger + multi-spec conflict: swagger wins, specs=[], warning printed; config file auto-discovery deferred to Plan 04
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:08:10.896Z
-Stopped at: Completed 01-config-and-activation/01-02-PLAN.md
+Last session: 2026-03-11T12:09:43.081Z
+Stopped at: Completed 01-config-and-activation/01-03-PLAN.md
 Resume file: None

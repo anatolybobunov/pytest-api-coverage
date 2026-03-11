@@ -10,8 +10,8 @@
 - [x] **CFG-01**: Пользователь может задать несколько спек через YAML/JSON конфиг-файл с полями `name`, `path`, `urls` на каждую спеку
 - [x] **CFG-02**: Плагин автоматически обнаруживает `coverage-config.yaml` / `coverage-config.json` в корне проекта без явного указания
 - [x] **CFG-03**: Пользователь может указать конфиг-файл явно через флаг `--coverage-config=path`
-- [ ] **CFG-04**: Пользователь может задать одну спеку через CLI-флаги `--coverage-spec-name`, `--coverage-spec-path`, `--coverage-spec-url` (для простых случаев)
-- [ ] **CFG-05**: Плагин выдаёт понятную ошибку при попытке совместить `--swagger` с multi-spec флагами
+- [x] **CFG-04**: Пользователь может задать одну спеку через CLI-флаги `--coverage-spec-name`, `--coverage-spec-path`, `--coverage-spec-url` (для простых случаев)
+- [x] **CFG-05**: Плагин выдаёт понятную ошибку при попытке совместить `--swagger` с multi-spec флагами
 
 ### Orchestration
 
@@ -33,7 +33,7 @@
 
 ### Settings
 
-- [ ] **SET-01**: `is_enabled()` возвращает `True` при любом из трёх источников конфигурации: `--swagger`, `--coverage-spec-path`, или наличие конфиг-файла
+- [x] **SET-01**: `is_enabled()` возвращает `True` при любом из трёх источников конфигурации: `--swagger`, `--coverage-spec-path`, или наличие конфиг-файла
 - [ ] **SET-02**: `write_reports()` принимает опциональный параметр `prefix`; при `prefix=None` поведение идентично текущему
 
 ## v2 Requirements
@@ -64,9 +64,9 @@
 | CFG-01 | Phase 1: Config and Activation | Complete |
 | CFG-02 | Phase 1: Config and Activation | Complete |
 | CFG-03 | Phase 1: Config and Activation | Complete |
-| CFG-04 | Phase 1: Config and Activation | Pending |
-| CFG-05 | Phase 1: Config and Activation | Pending |
-| SET-01 | Phase 1: Config and Activation | Pending |
+| CFG-04 | Phase 1: Config and Activation | Complete |
+| CFG-05 | Phase 1: Config and Activation | Complete |
+| SET-01 | Phase 1: Config and Activation | Complete |
 | SET-02 | Phase 2: Orchestration and File Output | Pending |
 | ORC-01 | Phase 2: Orchestration and File Output | Pending |
 | ORC-02 | Phase 2: Orchestration and File Output | Pending |
