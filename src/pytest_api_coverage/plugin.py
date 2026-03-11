@@ -9,6 +9,7 @@ import pytest
 from pytest_api_coverage.adapters import ADAPTER_REGISTRY
 from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.config.settings import CoverageSettings
+from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerParser, SwaggerSpec
 from pytest_api_coverage.writers import write_reports
@@ -149,6 +150,9 @@ class CoverageSinglePlugin:
         self._adapters = [cls(self.collector) for cls in ADAPTER_REGISTRY]
         self.swagger_spec: SwaggerSpec | None = None
         self.report_data: dict[str, Any] | None = None
+        self.orchestrator: MultiSpecOrchestrator | None = None
+        if self.settings.specs:
+            self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
@@ -169,7 +173,10 @@ class CoverageSinglePlugin:
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Generate coverage reports at session end."""
-        if self.collector.has_data() and self.swagger_spec:
+        if self.settings.specs and self.orchestrator:
+            self.orchestrator.process_interactions(self.collector.get_data())
+            self.orchestrator.generate_all_reports()
+        elif self.collector.has_data() and self.swagger_spec:
             self._generate_report()
 
     @pytest.hookimpl
@@ -227,12 +234,15 @@ class CoverageMasterPlugin:
     def __init__(self, config: Config) -> None:
         self.config = config
         self.settings = CoverageSettings.from_pytest_config(config)
-        self.worker_data: dict[str, list[dict[str, Any]]] = {}
+        self.worker_data: dict[str, Any] = {}
         self.swagger_spec: SwaggerSpec | None = None
         self.report_data: dict[str, Any] | None = None
+        self.orchestrator: MultiSpecOrchestrator | None = None
 
         # Load swagger on master
         self._load_swagger()
+        if self.settings.specs:
+            self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
@@ -256,12 +266,30 @@ class CoverageMasterPlugin:
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Aggregate worker data and generate reports."""
-        all_data: list[dict[str, Any]] = []
-        for _worker_id, data in self.worker_data.items():
-            all_data.extend(data)
+        if self.settings.specs and self.orchestrator:
+            # Multi-spec mode: merge per_spec dicts from each worker
+            merged: dict[str, list[dict[str, Any]]] = {s.name: [] for s in self.settings.specs}
+            for _worker_id, data in self.worker_data.items():
+                if isinstance(data, dict) and "per_spec" in data:
+                    for spec_name, interactions in data["per_spec"].items():
+                        if spec_name in merged:
+                            merged[spec_name].extend(interactions)
+                    self.orchestrator.unmatched_count += data.get("unmatched_count", 0)
 
-        if all_data and self.swagger_spec:
-            self._generate_report(all_data)
+            # Feed merged per-spec interactions directly to reporters
+            for spec_name, interactions in merged.items():
+                reporter = self.orchestrator._reporters.get(spec_name)
+                if reporter:
+                    reporter.process_interactions(interactions)
+            self.orchestrator.generate_all_reports()
+        else:
+            # Legacy path
+            all_data: list[dict[str, Any]] = []
+            for _worker_id, data in self.worker_data.items():
+                if isinstance(data, list):
+                    all_data.extend(data)
+            if all_data and self.swagger_spec:
+                self._generate_report(all_data)
 
     @pytest.hookimpl
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
@@ -288,6 +316,31 @@ class CoverageMasterPlugin:
         written = write_reports(self.report_data, self.settings.output_dir, self.settings.formats)
         if written:
             print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
+
+
+def _route_interaction_for_worker(
+    interaction: dict[str, Any], specs: list[Any]
+) -> str | None:
+    """Minimal routing for worker pre-filtering — duplicates orchestrator logic.
+
+    Avoids importing MultiSpecOrchestrator on workers to keep them lightweight.
+    """
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    url = interaction.get("request", {}).get("url", "")
+    for spec in specs:
+        for spec_url in spec.urls:
+            parsed_req = urlparse(url)
+            parsed_spec = urlparse(spec_url)
+            req_origin = f"{parsed_req.scheme}://{parsed_req.netloc}"
+            spec_origin = f"{parsed_spec.scheme}://{parsed_spec.netloc}"
+            if req_origin != spec_origin:
+                continue
+            spec_path = (parsed_spec.path or "/").rstrip("/")
+            req_path = parsed_req.path or "/"
+            if req_path == parsed_spec.path or req_path.startswith(spec_path + "/"):
+                return spec.name
+    return None
 
 
 class CoverageWorkerPlugin:
@@ -317,7 +370,21 @@ class CoverageWorkerPlugin:
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Send collected data back to master."""
-        session.config.workeroutput["coverage_data"] = self.collector.get_data()  # type: ignore[attr-defined]
+        if self.settings.specs:
+            per_spec: dict[str, list[dict[str, Any]]] = {s.name: [] for s in self.settings.specs}
+            unmatched_count = 0
+            for interaction in self.collector.get_data():
+                spec_name = _route_interaction_for_worker(interaction, self.settings.specs)
+                if spec_name and spec_name in per_spec:
+                    per_spec[spec_name].append(interaction)
+                else:
+                    unmatched_count += 1
+            session.config.workeroutput["coverage_data"] = {  # type: ignore[attr-defined]
+                "per_spec": per_spec,
+                "unmatched_count": unmatched_count,
+            }
+        else:
+            session.config.workeroutput["coverage_data"] = self.collector.get_data()  # type: ignore[attr-defined]
 
     @pytest.hookimpl
     def pytest_unconfigure(self, config: Config) -> None:
