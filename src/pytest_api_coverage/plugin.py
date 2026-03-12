@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -128,6 +129,22 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(plugin, "api_coverage_plugin")
 
 
+def _build_activity_line(settings: CoverageSettings) -> str | None:
+    """Build the startup activity indicator line for the terminal.
+
+    Returns a formatted string describing the active plugin mode, or None
+    if neither swagger nor specs are configured (should not happen after
+    is_enabled() check, but guard anyway).
+    """
+    if settings.specs:
+        spec_names = ", ".join(s.name for s in settings.specs)
+        return f"[api-coverage] Active | mode: multi-spec | specs: {spec_names} | output: {settings.output_dir}/"
+    if settings.swagger:
+        stem = Path(str(settings.swagger)).stem
+        return f"[api-coverage] Active | mode: single-spec | spec: {stem} | output: {settings.output_dir}/"
+    return None
+
+
 def _is_xdist_master(config: Config) -> bool:
     """Check if we're running as xdist master with active workers.
 
@@ -219,6 +236,11 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         """Setup HTTP interception at session start."""
         self._load_swagger()
         self._setup_http_interception()
+        tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
+        if tr is not None:
+            line = _build_activity_line(self.settings)
+            if line is not None:
+                tr.write_line(line)
 
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
@@ -294,6 +316,16 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         self._load_swagger()
         if self.settings.specs:
             self.orchestrator = MultiSpecOrchestrator(self.settings)
+
+    @pytest.hookimpl
+    def pytest_sessionstart(self, session: Session) -> None:
+        """Log plugin activity at session start."""
+        tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
+        if tr is None:
+            return
+        line = _build_activity_line(self.settings)
+        if line is not None:
+            tr.write_line(line)
 
     @pytest.hookimpl
     def pytest_configure_node(self, node: object) -> None:
