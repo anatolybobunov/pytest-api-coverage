@@ -150,6 +150,7 @@ class CoverageSinglePlugin:
         self.collector = CoverageCollector()
         self._adapters = [cls(self.collector) for cls in ADAPTER_REGISTRY]
         self.swagger_spec: SwaggerSpec | None = None
+        self._swagger_load_error: str | None = None
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
         if self.settings.specs:
@@ -187,6 +188,11 @@ class CoverageSinglePlugin:
             _print_multi_spec_summary(terminalreporter, self.orchestrator)
         elif self.report_data:
             _print_terminal_summary(terminalreporter, self.report_data)
+        elif self._swagger_load_error:
+            terminalreporter.write_sep("=", "API Coverage Summary")
+            terminalreporter.write_line(
+                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+            )
 
     @pytest.hookimpl
     def pytest_unconfigure(self, config: Config) -> None:
@@ -195,9 +201,12 @@ class CoverageSinglePlugin:
 
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
+        if not self.settings.swagger:
+            return
         try:
             self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
         except Exception as e:
+            self._swagger_load_error = str(e)
             print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
 
     def _setup_http_interception(self) -> None:
@@ -239,6 +248,7 @@ class CoverageMasterPlugin:
         self.settings = CoverageSettings.from_pytest_config(config)
         self.worker_data: dict[str, Any] = {}
         self.swagger_spec: SwaggerSpec | None = None
+        self._swagger_load_error: str | None = None
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
 
@@ -249,9 +259,12 @@ class CoverageMasterPlugin:
 
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
+        if not self.settings.swagger:
+            return
         try:
             self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
         except Exception as e:
+            self._swagger_load_error = str(e)
             print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
 
     @pytest.hookimpl
@@ -301,6 +314,11 @@ class CoverageMasterPlugin:
             _print_multi_spec_summary(terminalreporter, self.orchestrator)
         elif self.report_data:
             _print_terminal_summary(terminalreporter, self.report_data)
+        elif self._swagger_load_error:
+            terminalreporter.write_sep("=", "API Coverage Summary")
+            terminalreporter.write_line(
+                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+            )
 
     def _generate_report(self, data: list[dict[str, Any]]) -> None:
         """Generate coverage report from aggregated worker data."""

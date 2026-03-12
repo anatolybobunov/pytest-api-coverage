@@ -184,6 +184,33 @@ def test_split_summary_has_separator(testdir, swagger_file=None):
     tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
 
 
+def test_swagger_load_failure_shown_in_terminal_summary():
+    """When swagger fails to load, terminal summary must show the error."""
+    from unittest.mock import MagicMock, patch
+    from pytest_api_coverage.plugin import CoverageSinglePlugin
+
+    config = MagicMock()
+    config.workerinput = None  # single process mode sentinel check
+
+    settings_mock = MagicMock()
+    settings_mock.swagger = "nonexistent.json"
+    settings_mock.specs = []
+    settings_mock.is_enabled.return_value = True
+
+    with patch("pytest_api_coverage.plugin.CoverageSettings.from_pytest_config", return_value=settings_mock):
+        with patch("pytest_api_coverage.plugin.SwaggerParser.parse", side_effect=FileNotFoundError("file not found")):
+            plugin = CoverageSinglePlugin(config)
+            plugin._load_swagger()
+
+    tr = MagicMock()
+    plugin.pytest_terminal_summary(tr)
+
+    tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
+    # The written line must mention the error
+    written_args = " ".join(str(c) for c in tr.write_line.call_args_list)
+    assert "failed" in written_args.lower() or "error" in written_args.lower()
+
+
 def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
     """Multi-spec run with -n 2 (xdist) produces auth-coverage.json and orders-coverage.html."""
     _write_two_spec_config(pytester)
