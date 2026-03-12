@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    import pytest
+import pytest
+
+# Module-level logger — placed after all imports to satisfy E402
+logger = logging.getLogger("pytest_api_coverage")
 
 
 @dataclass
@@ -181,19 +184,22 @@ class CoverageSettings:
 
         if swagger and any_spec_flag:
             # --swagger cannot be combined with multi-spec flags; swagger wins
-            print("\n[api-coverage] Warning: --swagger cannot be combined with multi-spec flags; using --swagger mode")
+            logger.warning("--swagger cannot be combined with multi-spec flags; using --swagger mode")
         elif any_spec_flag:
             if not spec_name:
-                print(
-                    "\n[api-coverage] Warning: --coverage-spec-path/--coverage-spec-url requires "
-                    "--coverage-spec-name; skipping spec"
+                pytest.exit(
+                    "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
+                    returncode=1,
                 )
             elif not spec_base_urls:
-                print("\n[api-coverage] Warning: --coverage-spec-name requires --coverage-spec-base-url")
+                pytest.exit(
+                    "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
+                    returncode=1,
+                )
             elif spec_path and spec_url:
-                print(
-                    "\n[api-coverage] Warning: --coverage-spec-path and --coverage-spec-url are "
-                    "mutually exclusive; skipping spec"
+                pytest.exit(
+                    "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+                    returncode=1,
                 )
             else:
                 specs = [
@@ -215,9 +221,7 @@ class CoverageSettings:
             if explicit_config:
                 config_path = Path(explicit_config)
                 if not config_path.exists():
-                    import pytest as _pytest  # noqa: PLC0415
-
-                    _pytest.exit(
+                    pytest.exit(
                         f"[api-coverage] Config file not found: {config_path}",
                         returncode=1,
                     )
@@ -230,9 +234,7 @@ class CoverageSettings:
             # Validate that each spec's path exists on disk
             for spec in specs:
                 if spec.path and not Path(str(spec.path)).exists():
-                    import pytest as _pytest  # noqa: PLC0415
-
-                    _pytest.exit(
+                    pytest.exit(
                         f"[api-coverage] Spec file not found: {spec.path} (spec: '{spec.name}')",
                         returncode=1,
                     )

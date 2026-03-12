@@ -65,14 +65,14 @@ def make_interaction(url: str, method: str = "GET", path: str = "/users") -> dic
 
 class TestMultiSpecOrchestratorInit:
     def test_init_creates_reporter_per_spec(self, settings_two_specs):
-        """Orchestrator with 2 specs has 2 entries in _reporters."""
+        """Orchestrator with 2 specs has 2 entries in reporters."""
         from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 
         orch = MultiSpecOrchestrator(settings_two_specs)
 
-        assert len(orch._reporters) == 2
-        assert "auth" in orch._reporters
-        assert "orders" in orch._reporters
+        assert len(orch.reporters) == 2
+        assert "auth" in orch.reporters
+        assert "orders" in orch.reporters
 
     def test_all_specs_fail_orchestrator_is_noop(self, tmp_path):
         """If _load_all_specs fails for all specs, _specs is empty, generate_all_reports() does nothing."""
@@ -90,14 +90,16 @@ class TestMultiSpecOrchestratorInit:
 
         orch = MultiSpecOrchestrator(settings)
 
-        assert orch._specs == []
-        assert orch._reporters == {}
+        assert orch.specs == []
+        assert orch.reporters == {}
 
         # generate_all_reports() must not raise
         orch.generate_all_reports()
 
-    def test_overlapping_urls_prints_warning(self, auth_spec_file, orders_spec_file, capsys):
-        """Two specs share a URL -> warning is printed."""
+    def test_overlapping_urls_prints_warning(self, auth_spec_file, orders_spec_file, caplog):
+        """Two specs share a URL -> warning is logged."""
+        import logging
+
         from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 
         shared_url = "https://api.example.com"
@@ -108,11 +110,10 @@ class TestMultiSpecOrchestratorInit:
             ]
         )
 
-        MultiSpecOrchestrator(settings)
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            MultiSpecOrchestrator(settings)
 
-        captured = capsys.readouterr()
-        assert "Warning" in captured.out
-        assert shared_url in captured.out
+        assert shared_url in caplog.text
 
 
 class TestRouteInteraction:
@@ -207,8 +208,8 @@ class TestProcessInteractions:
         auth_i2 = make_interaction("https://auth.example.com/users")
         orders_i1 = make_interaction("https://orders.example.com/users")
 
-        auth_reporter = orch._reporters["auth"]
-        orders_reporter = orch._reporters["orders"]
+        auth_reporter = orch.reporters["auth"]
+        orders_reporter = orch.reporters["orders"]
 
         auth_reporter.process_interactions = MagicMock()
         orders_reporter.process_interactions = MagicMock()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from urllib.parse import urlparse
 
@@ -10,6 +11,8 @@ from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerParser
 from pytest_api_coverage.utils import normalize_origin
 from pytest_api_coverage.writers import write_reports
+
+logger = logging.getLogger("pytest_api_coverage")
 
 
 class MultiSpecOrchestrator:
@@ -47,7 +50,7 @@ class MultiSpecOrchestrator:
                 self._reporters[spec.name] = reporter
                 self._specs.append(spec)
             except Exception as e:
-                print(f"\n[api-coverage] Warning: Failed to load spec '{spec.name}': {e}")
+                logger.warning("Failed to load spec '%s': %s", spec.name, e)
 
     def _warn_overlapping_urls(self) -> None:
         """Check for URL overlap across specs and warn. Uses exact URL string comparison."""
@@ -55,10 +58,11 @@ class MultiSpecOrchestrator:
         for spec in self._specs:
             for url in spec.urls:
                 if url in seen:
-                    print(
-                        f"\n[api-coverage] Warning: URL '{url}' appears in both "
-                        f"'{seen[url]}' and '{spec.name}' specs. "
-                        "First-match-wins applies."
+                    logger.warning(
+                        "URL '%s' appears in both '%s' and '%s' specs. First-match-wins applies.",
+                        url,
+                        seen[url],
+                        spec.name,
                     )
                 else:
                     seen[url] = spec.name
@@ -88,6 +92,16 @@ class MultiSpecOrchestrator:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    @property
+    def specs(self) -> list[SpecConfig]:
+        """Read-only view of loaded specs."""
+        return self._specs
+
+    @property
+    def reporters(self) -> dict[str, CoverageReporter]:
+        """Read-only view of spec reporters."""
+        return self._reporters
 
     def route_interaction(self, interaction: dict[str, Any]) -> str | None:
         """Return the spec name that owns this interaction, or None.
@@ -131,4 +145,4 @@ class MultiSpecOrchestrator:
                 prefix=spec.name,
             )
             if written:
-                print(f"\n[api-coverage] Reports for '{spec.name}' written to: {self.settings.output_dir}")
+                logger.info("Reports for '%s' written to: %s", spec.name, self.settings.output_dir)

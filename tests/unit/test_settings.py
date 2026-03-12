@@ -130,8 +130,10 @@ class TestFromPytestConfig:
         assert spec.url == "https://orders.example.com/openapi.json"
         assert spec.urls == ["https://orders.example.com"]
 
-    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, capsys: Any) -> None:
-        """When --swagger and spec flags both set, swagger wins, specs is empty, warning printed."""
+    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, caplog: Any) -> None:
+        """When --swagger and spec flags both set, swagger wins, specs is empty, warning logged."""
+        import logging
+
         mock_config = _make_mock_config(
             mocker,
             {
@@ -140,11 +142,11 @@ class TestFromPytestConfig:
                 "coverage_spec_base_url": ["https://auth.example.com"],
             },
         )
-        settings = CoverageSettings.from_pytest_config(mock_config)
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.swagger == "https://api.example.com/swagger.json"
         assert settings.specs == []
-        captured = capsys.readouterr()
-        assert "Warning" in captured.out or "warning" in captured.out.lower()
+        assert "warning" in caplog.text.lower() or "--swagger" in caplog.text.lower()
 
     def test_from_pytest_config_no_spec_flags_no_specs(self, mocker: Any) -> None:
         """When all new spec options are None, specs is empty."""
@@ -152,8 +154,10 @@ class TestFromPytestConfig:
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.specs == []
 
-    def test_from_pytest_config_base_url_none_produces_empty_list(self, mocker: Any) -> None:
-        """coverage_spec_base_url=None does not error; coerced to empty list."""
+    def test_from_pytest_config_base_url_none_exits(self, mocker: Any) -> None:
+        """coverage_spec_base_url=None with a spec name must call pytest.exit() (SystemExit)."""
+        import pytest
+
         mock_config = _make_mock_config(
             mocker,
             {
@@ -162,14 +166,18 @@ class TestFromPytestConfig:
                 "coverage_spec_base_url": None,
             },
         )
-        # Should not raise; if no base_urls, spec is skipped (warning printed but no error)
-        settings = CoverageSettings.from_pytest_config(mock_config)
-        # spec is skipped when base_urls is empty
-        assert isinstance(settings.specs, list)
+        exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
+        with pytest.raises(SystemExit):
+            CoverageSettings.from_pytest_config(mock_config)
+        exit_mock.assert_called_once_with(
+            "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
+            returncode=1,
+        )
 
 
-def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
-    """Missing --coverage-spec-name with --coverage-spec-path must warn, not crash."""
+def test_spec_path_without_name_exits(tmp_path, mocker):
+    """Missing --coverage-spec-name with --coverage-spec-path must call pytest.exit() (SystemExit)."""
+    import pytest
     from unittest.mock import MagicMock
 
     spec_file = tmp_path / "api.yaml"
@@ -192,14 +200,44 @@ def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
     }.get(key, default)
     config.rootpath = tmp_path
 
-    # Must not raise
-    settings = CoverageSettings.from_pytest_config(config)
+    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
+    with pytest.raises(SystemExit):
+        CoverageSettings.from_pytest_config(config)
+    exit_mock.assert_called_once_with(
+        "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
+        returncode=1,
+    )
 
-    # Must produce no specs (skipped due to missing name)
-    assert settings.specs == []
 
-    captured = capsys.readouterr()
-    assert "warning" in captured.out.lower() or "name" in captured.out.lower()
+def test_spec_path_and_url_mutually_exclusive_exits(tmp_path, mocker):
+    """Providing both --coverage-spec-path and --coverage-spec-url must call pytest.exit() (SystemExit)."""
+    import pytest
+    from unittest.mock import MagicMock
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "swagger": None,
+        "coverage_spec_name": "auth",
+        "coverage_spec_path": "./auth.yaml",
+        "coverage_spec_url": "https://auth.example.com/openapi.json",
+        "coverage_spec_base_url": ["https://auth.example.com"],
+        "coverage_config": None,
+        "coverage_output": "coverage-output",
+        "coverage_format": "json,csv,html",
+        "coverage_base_url": None,
+        "coverage_include_base_url": None,
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
+    with pytest.raises(SystemExit):
+        CoverageSettings.from_pytest_config(config)
+    exit_mock.assert_called_once_with(
+        "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+        returncode=1,
+    )
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):
