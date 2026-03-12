@@ -57,7 +57,10 @@ Plans:
   2. Terminal output includes a totals row showing aggregate coverage and a count of requests that matched no spec
   3. Running `pytest --swagger=spec.yaml` produces `coverage.json`, `coverage.html`, `coverage.csv` with no behavioral change from before this work
   4. Running tests with `pytest-xdist` (`-n auto`) in multi-spec mode produces the same report files as a non-parallel run
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — _print_multi_spec_summary + unified terminal table + compatibility tests (OUT-02, OUT-03, COMPAT-01, COMPAT-02)
 
 ## Progress
 
@@ -65,4 +68,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Config and Activation | 4/4 | Complete   | 2026-03-11 |
 | 2. Orchestration and File Output | 3/3 | Complete   | 2026-03-11 |
-| 3. Terminal Summary and Compatibility | 0/? | Not started | - |
+| 3. Terminal Summary and Compatibility | 0/1 | Not started | - |
