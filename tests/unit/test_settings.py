@@ -174,3 +174,37 @@ class TestFromPytestConfig:
         settings = CoverageSettings.from_pytest_config(mock_config)
         # spec is skipped when base_urls is empty
         assert isinstance(settings.specs, list)
+
+
+def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
+    """Missing --coverage-spec-name with --coverage-spec-path must warn, not crash."""
+    from unittest.mock import MagicMock
+
+    spec_file = tmp_path / "api.yaml"
+    spec_file.write_text("openapi: '3.0.0'")
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "swagger": None,
+        "coverage_spec_name": None,          # <- missing
+        "coverage_spec_path": str(spec_file),
+        "coverage_spec_url": None,
+        "coverage_spec_base_url": ["https://api.example.com"],
+        "coverage_config": None,
+        "coverage_output": "coverage-output",
+        "coverage_format": "json,csv,html",
+        "coverage_base_url": None,
+        "coverage_include_base_url": None,
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    # Must not raise
+    settings = CoverageSettings.from_pytest_config(config)
+
+    # Must produce no specs (skipped due to missing name)
+    assert settings.specs == []
+
+    captured = capsys.readouterr()
+    assert "warning" in captured.out.lower() or "name" in captured.out.lower()

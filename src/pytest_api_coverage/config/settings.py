@@ -187,7 +187,12 @@ class CoverageSettings:
                 "using --swagger mode"
             )
         elif any_spec_flag:
-            if not spec_base_urls:
+            if not spec_name:
+                print(
+                    "\n[api-coverage] Warning: --coverage-spec-path/--coverage-spec-url requires "
+                    "--coverage-spec-name; skipping spec"
+                )
+            elif not spec_base_urls:
                 print("\n[api-coverage] Warning: --coverage-spec-name requires --coverage-spec-base-url")
             elif spec_path and spec_url:
                 print(
@@ -197,7 +202,7 @@ class CoverageSettings:
             else:
                 specs = [
                     SpecConfig(
-                        name=spec_name or "",
+                        name=spec_name,
                         urls=spec_base_urls,
                         path=spec_path,
                         url=spec_url,
