@@ -141,7 +141,64 @@ def _is_xdist_master(config: Config) -> bool:
     return numprocesses is not None and numprocesses > 0
 
 
-class CoverageSinglePlugin:
+class _InterceptionMixin:
+    """Shared HTTP interception logic for single-process and worker plugins.
+
+    Requires subclass to set:
+        self.collector: CoverageCollector
+        self._adapters: list[HttpAdapter]
+    """
+
+    collector: CoverageCollector
+    _adapters: list  # list[HttpAdapterProtocol]
+
+    @pytest.hookimpl
+    def pytest_runtest_setup(self, item: Item) -> None:
+        """Set current test name before test runs."""
+        self.collector.set_current_test(item.nodeid)
+
+    @pytest.hookimpl
+    def pytest_runtest_teardown(self, item: Item) -> None:
+        """Clear current test name after test completes."""
+        self.collector.set_current_test(None)
+
+    def _setup_http_interception(self) -> None:
+        """Install HTTP adapters for requests and httpx."""
+        for adapter in self._adapters:
+            adapter.install()
+
+    def _teardown_http_interception(self) -> None:
+        """Uninstall HTTP adapters to prevent memory leaks."""
+        for adapter in self._adapters:
+            adapter.uninstall()
+
+
+class _SwaggerLoadMixin:
+    """Shared swagger loading logic for single-process and master plugins.
+
+    Requires subclass to set:
+        self.settings: CoverageSettings
+    Sets:
+        self.swagger_spec: SwaggerSpec | None
+        self._swagger_load_error: str | None
+    """
+
+    settings: CoverageSettings
+    swagger_spec: SwaggerSpec | None
+    _swagger_load_error: str | None
+
+    def _load_swagger(self) -> None:
+        """Load and parse swagger specification."""
+        if not self.settings.swagger:
+            return
+        try:
+            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
+        except Exception as e:
+            self._swagger_load_error = str(e)
+            print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
+
+
+class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
     """Coverage plugin for single-process test execution."""
 
     def __init__(self, config: Config) -> None:
@@ -162,16 +219,6 @@ class CoverageSinglePlugin:
         """Setup HTTP interception at session start."""
         self._load_swagger()
         self._setup_http_interception()
-
-    @pytest.hookimpl
-    def pytest_runtest_setup(self, item: Item) -> None:
-        """Set current test name before test runs."""
-        self.collector.set_current_test(item.nodeid)
-
-    @pytest.hookimpl
-    def pytest_runtest_teardown(self, item: Item) -> None:
-        """Clear current test name after test completes."""
-        self.collector.set_current_test(None)
 
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
@@ -210,26 +257,6 @@ class CoverageSinglePlugin:
         """Clean up adapters when pytest finishes."""
         self._teardown_http_interception()
 
-    def _load_swagger(self) -> None:
-        """Load and parse swagger specification."""
-        if not self.settings.swagger:
-            return
-        try:
-            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
-        except Exception as e:
-            self._swagger_load_error = str(e)
-            print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
-
-    def _setup_http_interception(self) -> None:
-        """Install HTTP adapters for requests and httpx."""
-        for adapter in self._adapters:
-            adapter.install()
-
-    def _teardown_http_interception(self) -> None:
-        """Uninstall HTTP adapters to prevent memory leaks."""
-        for adapter in self._adapters:
-            adapter.uninstall()
-
     def _generate_report(self) -> None:
         """Generate coverage report using reporter."""
         if not self.swagger_spec:
@@ -251,7 +278,7 @@ class CoverageSinglePlugin:
             print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
 
 
-class CoverageMasterPlugin:
+class CoverageMasterPlugin(_SwaggerLoadMixin):
     """Coverage plugin for xdist master node."""
 
     def __init__(self, config: Config) -> None:
@@ -267,16 +294,6 @@ class CoverageMasterPlugin:
         self._load_swagger()
         if self.settings.specs:
             self.orchestrator = MultiSpecOrchestrator(self.settings)
-
-    def _load_swagger(self) -> None:
-        """Load and parse swagger specification."""
-        if not self.settings.swagger:
-            return
-        try:
-            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
-        except Exception as e:
-            self._swagger_load_error = str(e)
-            print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
 
     @pytest.hookimpl
     def pytest_configure_node(self, node: object) -> None:
@@ -380,7 +397,7 @@ def _route_interaction_for_worker(
     return None
 
 
-class CoverageWorkerPlugin:
+class CoverageWorkerPlugin(_InterceptionMixin):
     """Coverage plugin for xdist worker nodes."""
 
     def __init__(self, config: Config) -> None:
@@ -393,16 +410,6 @@ class CoverageWorkerPlugin:
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception on worker."""
         self._setup_http_interception()
-
-    @pytest.hookimpl
-    def pytest_runtest_setup(self, item: Item) -> None:
-        """Set current test name before test runs."""
-        self.collector.set_current_test(item.nodeid)
-
-    @pytest.hookimpl
-    def pytest_runtest_teardown(self, item: Item) -> None:
-        """Clear current test name after test completes."""
-        self.collector.set_current_test(None)
 
     @pytest.hookimpl
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
@@ -427,17 +434,6 @@ class CoverageWorkerPlugin:
     def pytest_unconfigure(self, config: Config) -> None:
         """Clean up adapters when worker finishes."""
         self._teardown_http_interception()
-
-    def _setup_http_interception(self) -> None:
-        """Install HTTP adapters."""
-        for adapter in self._adapters:
-            adapter.install()
-
-    def _teardown_http_interception(self) -> None:
-        """Uninstall HTTP adapters."""
-        for adapter in self._adapters:
-            adapter.uninstall()
-
 
 def _print_terminal_summary(
     terminalreporter: TerminalReporter,
