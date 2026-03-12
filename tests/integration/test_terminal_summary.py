@@ -116,14 +116,21 @@ def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
     spec = pytester.path / "spec.yaml"
     spec.write_text(MINIMAL_SPEC)
 
+    pytester.makeconftest("""
+        import pytest
+        import httpx
+
+        @pytest.fixture(autouse=True)
+        def mock_http(httpx_mock):
+            httpx_mock.add_response(url="https://api.example.com/users", status_code=200)
+    """)
+
     pytester.makepyfile("""
         import httpx
 
         def test_makes_request():
-            try:
-                httpx.get("https://api.example.com/users")
-            except Exception:
-                pass
+            response = httpx.get("https://api.example.com/users")
+            assert response.status_code == 200
     """)
 
     result = pytester.runpytest(

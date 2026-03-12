@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -182,7 +183,9 @@ class CoverageSinglePlugin:
     @pytest.hookimpl
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
-        if self.report_data:
+        if self.orchestrator:
+            _print_multi_spec_summary(terminalreporter, self.orchestrator)
+        elif self.report_data:
             _print_terminal_summary(terminalreporter, self.report_data)
 
     @pytest.hookimpl
@@ -294,7 +297,9 @@ class CoverageMasterPlugin:
     @pytest.hookimpl
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
-        if self.report_data:
+        if self.orchestrator:
+            _print_multi_spec_summary(terminalreporter, self.orchestrator)
+        elif self.report_data:
             _print_terminal_summary(terminalreporter, self.report_data)
 
     def _generate_report(self, data: list[dict[str, Any]]) -> None:
@@ -403,48 +408,79 @@ class CoverageWorkerPlugin:
 
 
 def _print_terminal_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:
-    """Print coverage summary to pytest terminal.
+    """Print coverage summary to pytest terminal (single-spec / --swagger mode).
+
+    Uses unified table format: one row with spec name, endpoints, %, req count, filename.
 
     Args:
         terminalreporter: pytest TerminalReporter
         report_data: Coverage report data
     """
-    terminalreporter.write_sep("=", "API Coverage Summary")
-
     if report_data.get("split_by_origin"):
         _print_split_summary(terminalreporter, report_data)
-    else:
-        _print_standard_summary(terminalreporter, report_data)
+        return
 
-
-def _print_standard_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:
-    """Print standard (non-split) coverage summary."""
     summary = report_data.get("summary", {})
-
+    spec_name = pathlib.Path(str(report_data.get("swagger_source", "coverage"))).stem
+    terminalreporter.write_sep("=", "API Coverage Summary")
     terminalreporter.write_line(
-        f"Endpoints: {summary.get('covered_endpoints', 0)}/{summary.get('total_endpoints', 0)} covered "
-        f"({summary.get('coverage_percentage', 0):.1f}%)"
+        f"{spec_name}   {summary.get('covered_endpoints', 0)}/{summary.get('total_endpoints', 0)} endpoints"
+        f"   {summary.get('coverage_percentage', 0.0):.1f}%   {summary.get('total_requests', 0)} req   coverage.html"
     )
-    terminalreporter.write_line(f"Total HTTP requests: {summary.get('total_requests', 0)}")
 
-    # Show uncovered endpoints (grouped by path)
-    endpoints = report_data.get("endpoints", [])
-    uncovered_paths = [ep for ep in endpoints if not ep.get("is_covered", False)]
-    if uncovered_paths:
-        # Count total uncovered methods
-        uncovered_methods = []
-        for path_data in uncovered_paths:
-            path = path_data.get("path", "")
-            for method_data in path_data.get("methods", []):
-                if not method_data.get("is_covered", False):
-                    uncovered_methods.append((method_data.get("method", "?"), path))
 
-        terminalreporter.write_line("")
-        terminalreporter.write_line(f"Uncovered endpoints ({len(uncovered_methods)}):")
-        for method, path in uncovered_methods[:10]:  # Show max 10
-            terminalreporter.write_line(f"  - {method} {path}")
-        if len(uncovered_methods) > 10:
-            terminalreporter.write_line(f"  ... and {len(uncovered_methods) - 10} more")
+def _print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: MultiSpecOrchestrator) -> None:
+    """Print multi-spec coverage summary to pytest terminal.
+
+    Shows one row per spec with endpoints, %, req count, filename, plus a TOTAL row.
+
+    Args:
+        terminalreporter: pytest TerminalReporter
+        orchestrator: MultiSpecOrchestrator with all spec reporters
+    """
+    specs = orchestrator._specs
+    reporters = orchestrator._reporters
+    if not specs:
+        return
+
+    rows = []
+    for spec in specs:
+        reporter = reporters.get(spec.name)
+        if reporter is None:
+            continue
+        summary = reporter.generate_report()["summary"]
+        rows.append({
+            "name": spec.name,
+            "covered": summary["covered_endpoints"],
+            "total": summary["total_endpoints"],
+            "pct": summary["coverage_percentage"],
+            "requests": summary["total_requests"],
+            "filename": f"{spec.name}-coverage.html",
+        })
+
+    n = len(specs)
+    terminalreporter.write_sep("=", f"API Coverage Summary ({n} specs)")
+
+    max_name_len = max((len(r["name"]) for r in rows), default=5)
+    max_name_len = max(max_name_len, len("TOTAL"))
+
+    for row in rows:
+        name_col = row["name"].ljust(max_name_len)
+        terminalreporter.write_line(
+            f"{name_col}   {row['covered']}/{row['total']} endpoints"
+            f"   {row['pct']:.1f}%   {row['requests']} req   {row['filename']}"
+        )
+
+    total_covered = sum(r["covered"] for r in rows)
+    total_endpoints = sum(r["total"] for r in rows)
+    total_pct = (total_covered / total_endpoints * 100) if total_endpoints > 0 else 0.0
+    total_requests = sum(r["requests"] for r in rows)
+    unmatched = orchestrator.unmatched_count
+    name_col = "TOTAL".ljust(max_name_len)
+    terminalreporter.write_line(
+        f"{name_col}   {total_covered}/{total_endpoints} endpoints"
+        f"   {total_pct:.1f}%   {total_requests} req   {unmatched} unmatched"
+    )
 
 
 def _print_split_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:
