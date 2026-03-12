@@ -150,7 +150,7 @@ class _InterceptionMixin:
     """
 
     collector: CoverageCollector
-    _adapters: list  # list[HttpAdapterProtocol]
+    _adapters: list[Any]
 
     @pytest.hookimpl
     def pytest_runtest_setup(self, item: Item) -> None:
@@ -369,9 +369,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
             print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
 
 
-def _route_interaction_for_worker(
-    interaction: dict[str, Any], specs: list[Any]
-) -> str | None:
+def _route_interaction_for_worker(interaction: dict[str, Any], specs: list[Any]) -> str | None:
     """Minimal routing for worker pre-filtering.
 
     Avoids importing MultiSpecOrchestrator on workers to keep them lightweight.
@@ -435,6 +433,7 @@ class CoverageWorkerPlugin(_InterceptionMixin):
         """Clean up adapters when worker finishes."""
         self._teardown_http_interception()
 
+
 def _print_terminal_summary(
     terminalreporter: TerminalReporter,
     report_data: dict[str, Any],
@@ -494,14 +493,16 @@ def _print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: 
         if reporter is None:
             continue
         summary = reporter.generate_report()["summary"]
-        rows.append({
-            "name": spec.name,
-            "covered": summary["covered_endpoints"],
-            "total": summary["total_endpoints"],
-            "pct": summary["coverage_percentage"],
-            "requests": summary["total_requests"],
-            "filename": f"{spec.name}-coverage.html",
-        })
+        rows.append(
+            {
+                "name": spec.name,
+                "covered": summary["covered_endpoints"],
+                "total": summary["total_endpoints"],
+                "pct": summary["coverage_percentage"],
+                "requests": summary["total_requests"],
+                "filename": f"{spec.name}-coverage.html",
+            }
+        )
 
     n = len(specs)
     terminalreporter.write_sep("=", f"API Coverage Summary ({n} specs)")

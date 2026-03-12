@@ -30,9 +30,7 @@ class SpecConfig:
             raise ValueError("SpecConfig 'name' must be a non-empty string")
 
         if self.path is not None and self.url is not None:
-            raise ValueError(
-                "SpecConfig 'path' and 'url' are mutually exclusive; provide only one"
-            )
+            raise ValueError("SpecConfig 'path' and 'url' are mutually exclusive; provide only one")
 
         if not self.urls:
             raise ValueError("SpecConfig 'urls' must be a non-empty list")
@@ -183,10 +181,7 @@ class CoverageSettings:
 
         if swagger and any_spec_flag:
             # --swagger cannot be combined with multi-spec flags; swagger wins
-            print(
-                "\n[api-coverage] Warning: --swagger cannot be combined with multi-spec flags; "
-                "using --swagger mode"
-            )
+            print("\n[api-coverage] Warning: --swagger cannot be combined with multi-spec flags; using --swagger mode")
         elif any_spec_flag:
             if not spec_name:
                 print(
@@ -221,6 +216,7 @@ class CoverageSettings:
                 config_path = Path(explicit_config)
                 if not config_path.exists():
                     import pytest as _pytest  # noqa: PLC0415
+
                     _pytest.exit(
                         f"[api-coverage] Config file not found: {config_path}",
                         returncode=1,
@@ -235,6 +231,7 @@ class CoverageSettings:
             for spec in specs:
                 if spec.path and not Path(str(spec.path)).exists():
                     import pytest as _pytest  # noqa: PLC0415
+
                     _pytest.exit(
                         f"[api-coverage] Spec file not found: {spec.path} (spec: '{spec.name}')",
                         returncode=1,

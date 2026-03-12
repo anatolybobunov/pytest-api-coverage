@@ -61,9 +61,7 @@ class TestSpecConfigFromDict:
 
     def test_spec_config_from_dict_local(self) -> None:
         """from_dict with local path produces correct SpecConfig."""
-        sc = SpecConfig.from_dict(
-            {"name": "auth", "path": "./auth.yaml", "urls": ["https://auth.example.com"]}
-        )
+        sc = SpecConfig.from_dict({"name": "auth", "path": "./auth.yaml", "urls": ["https://auth.example.com"]})
         assert sc.name == "auth"
         assert sc.path == Path("./auth.yaml")
         assert sc.urls == ["https://auth.example.com"]

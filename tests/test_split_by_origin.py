@@ -69,9 +69,7 @@ class TestSplitByOriginReportStructure:
         make_coverage_report,
     ):
         """Split report should have expected top-level keys."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         assert report["split_by_origin"] is True
         assert "origins" in report
@@ -86,9 +84,7 @@ class TestSplitByOriginReportStructure:
         make_coverage_report,
     ):
         """Split report should contain both origins."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         origins = report["origins"]
         assert len(origins) == 2
@@ -102,9 +98,7 @@ class TestSplitByOriginReportStructure:
         make_coverage_report,
     ):
         """Each origin should have summary and endpoints."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         for _origin, origin_data in report["origins"].items():
             assert "summary" in origin_data
@@ -125,9 +119,7 @@ class TestSplitByOriginCoverage:
         make_coverage_report,
     ):
         """Each origin should have independent coverage stats."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         # api.example.com: GET /users (1), POST /users (1)
         api_summary = report["origins"]["https://api.example.com"]["summary"]
@@ -146,9 +138,7 @@ class TestSplitByOriginCoverage:
         make_coverage_report,
     ):
         """Combined summary should aggregate across origins."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         combined = report["combined_summary"]
         assert combined["total_requests"] == 5  # 2 + 3
@@ -163,9 +153,7 @@ class TestSplitByOriginCoverage:
         make_coverage_report,
     ):
         """Each origin should have all spec endpoints listed (grouped by path)."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=True
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=True)
 
         for _origin, origin_data in report["origins"].items():
             # 2 paths: /users and /users/{id} (grouped format)
@@ -238,9 +226,7 @@ class TestNonSplitMode:
         make_coverage_report,
     ):
         """Standard (non-split) report should have expected keys."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=False
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=False)
 
         assert report["split_by_origin"] is False
         assert "summary" in report
@@ -255,9 +241,7 @@ class TestNonSplitMode:
         make_coverage_report,
     ):
         """Standard mode should aggregate all origins together."""
-        report = make_coverage_report(
-            simple_swagger_spec, interactions_multi_origin, split_by_origin=False
-        )
+        report = make_coverage_report(simple_swagger_spec, interactions_multi_origin, split_by_origin=False)
 
         # All 5 requests counted
         assert report["summary"]["total_requests"] == 5

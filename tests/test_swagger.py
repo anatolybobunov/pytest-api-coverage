@@ -56,28 +56,30 @@ def test_parse_swagger2_responses(temp_swagger_file: Path):
 
 def test_parse_openapi3(parse_swagger):
     """Test parsing OpenAPI 3.0 specification."""
-    spec = parse_swagger({
-        "openapi": "3.0.0",
-        "info": {"title": "OpenAPI 3 Test", "version": "2.0.0"},
-        "servers": [{"url": "/api/v2"}],
-        "paths": {
-            "/items": {
-                "get": {
-                    "operationId": "listItems",
-                    "summary": "List items",
-                    "responses": {"200": {"description": "OK"}},
-                },
-                "post": {
-                    "operationId": "createItem",
-                    "requestBody": {
-                        "required": True,
-                        "content": {"application/json": {"schema": {"type": "object"}}},
+    spec = parse_swagger(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "OpenAPI 3 Test", "version": "2.0.0"},
+            "servers": [{"url": "/api/v2"}],
+            "paths": {
+                "/items": {
+                    "get": {
+                        "operationId": "listItems",
+                        "summary": "List items",
+                        "responses": {"200": {"description": "OK"}},
                     },
-                    "responses": {"201": {"description": "Created"}},
-                },
-            }
-        },
-    })
+                    "post": {
+                        "operationId": "createItem",
+                        "requestBody": {
+                            "required": True,
+                            "content": {"application/json": {"schema": {"type": "object"}}},
+                        },
+                        "responses": {"201": {"description": "Created"}},
+                    },
+                }
+            },
+        }
+    )
 
     assert spec.title == "OpenAPI 3 Test"
     assert spec.version == "2.0.0"
@@ -152,21 +154,23 @@ def test_swagger_spec_get_endpoint():
 
 def test_parse_parameters(parse_swagger):
     """Test parameter parsing from Swagger 2.0."""
-    spec = parse_swagger({
-        "swagger": "2.0",
-        "info": {"title": "Test", "version": "1.0"},
-        "paths": {
-            "/users/{id}": {
-                "get": {
-                    "parameters": [
-                        {"name": "id", "in": "path", "required": True, "type": "integer"},
-                        {"name": "include", "in": "query", "type": "string"},
-                    ],
-                    "responses": {"200": {"description": "OK"}},
+    spec = parse_swagger(
+        {
+            "swagger": "2.0",
+            "info": {"title": "Test", "version": "1.0"},
+            "paths": {
+                "/users/{id}": {
+                    "get": {
+                        "parameters": [
+                            {"name": "id", "in": "path", "required": True, "type": "integer"},
+                            {"name": "include", "in": "query", "type": "string"},
+                        ],
+                        "responses": {"200": {"description": "OK"}},
+                    }
                 }
-            }
-        },
-    })
+            },
+        }
+    )
     endpoint = spec.get_endpoint("GET", "/users/{id}")
 
     assert len(endpoint.parameters) == 2
@@ -183,21 +187,23 @@ def test_parse_parameters(parse_swagger):
 
 def test_parse_tags_and_metadata(parse_swagger):
     """Test parsing of tags and metadata."""
-    spec = parse_swagger({
-        "swagger": "2.0",
-        "info": {"title": "Test", "version": "1.0"},
-        "paths": {
-            "/users": {
-                "get": {
-                    "operationId": "listUsers",
-                    "summary": "List all users",
-                    "description": "Returns a list of users",
-                    "tags": ["users", "admin"],
-                    "responses": {"200": {"description": "OK"}},
+    spec = parse_swagger(
+        {
+            "swagger": "2.0",
+            "info": {"title": "Test", "version": "1.0"},
+            "paths": {
+                "/users": {
+                    "get": {
+                        "operationId": "listUsers",
+                        "summary": "List all users",
+                        "description": "Returns a list of users",
+                        "tags": ["users", "admin"],
+                        "responses": {"200": {"description": "OK"}},
+                    }
                 }
-            }
-        },
-    })
+            },
+        }
+    )
     endpoint = spec.get_endpoint("GET", "/users")
 
     assert endpoint.operation_id == "listUsers"
@@ -208,22 +214,24 @@ def test_parse_tags_and_metadata(parse_swagger):
 
 def test_parse_openapi3_full_url_servers(parse_swagger):
     """Test OpenAPI 3.x with full URL in servers extracts base_path correctly."""
-    spec = parse_swagger({
-        "openapi": "3.0.0",
-        "info": {"title": "Full URL API", "version": "1.0.0"},
-        "servers": [
-            {"url": "https://api.example.com/v1"},
-            {"url": "https://staging.example.com/v1"},
-        ],
-        "paths": {
-            "/users": {
-                "get": {
-                    "summary": "List users",
-                    "responses": {"200": {"description": "OK"}},
+    spec = parse_swagger(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "Full URL API", "version": "1.0.0"},
+            "servers": [
+                {"url": "https://api.example.com/v1"},
+                {"url": "https://staging.example.com/v1"},
+            ],
+            "paths": {
+                "/users": {
+                    "get": {
+                        "summary": "List users",
+                        "responses": {"200": {"description": "OK"}},
+                    }
                 }
-            }
-        },
-    })
+            },
+        }
+    )
 
     # base_path should be extracted from full URL
     assert spec.base_path == "/v1"
@@ -237,12 +245,14 @@ def test_parse_openapi3_full_url_servers(parse_swagger):
 
 def test_parse_openapi3_server_with_deep_path(parse_swagger):
     """Test OpenAPI 3.x server URL with deep path prefix."""
-    spec = parse_swagger({
-        "openapi": "3.0.0",
-        "info": {"title": "Deep Path API", "version": "1.0.0"},
-        "servers": [{"url": "https://api.example.com/api/v2/service"}],
-        "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
-    })
+    spec = parse_swagger(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "Deep Path API", "version": "1.0.0"},
+            "servers": [{"url": "https://api.example.com/api/v2/service"}],
+            "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
+        }
+    )
 
     assert spec.base_path == "/api/v2/service"
     assert spec.host == "https://api.example.com"
@@ -250,12 +260,14 @@ def test_parse_openapi3_server_with_deep_path(parse_swagger):
 
 def test_parse_openapi3_server_no_path(parse_swagger):
     """Test OpenAPI 3.x server URL without path prefix."""
-    spec = parse_swagger({
-        "openapi": "3.0.0",
-        "info": {"title": "No Path API", "version": "1.0.0"},
-        "servers": [{"url": "https://api.example.com"}],
-        "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
-    })
+    spec = parse_swagger(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "No Path API", "version": "1.0.0"},
+            "servers": [{"url": "https://api.example.com"}],
+            "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
+        }
+    )
 
     assert spec.base_path == ""
     assert spec.host == "https://api.example.com"
@@ -263,11 +275,13 @@ def test_parse_openapi3_server_no_path(parse_swagger):
 
 def test_parse_openapi3_no_servers(parse_swagger):
     """Test OpenAPI 3.x without servers section."""
-    spec = parse_swagger({
-        "openapi": "3.0.0",
-        "info": {"title": "No Servers API", "version": "1.0.0"},
-        "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
-    })
+    spec = parse_swagger(
+        {
+            "openapi": "3.0.0",
+            "info": {"title": "No Servers API", "version": "1.0.0"},
+            "paths": {"/items": {"get": {"responses": {"200": {"description": "OK"}}}}},
+        }
+    )
 
     assert spec.base_path == ""
     assert spec.host == ""

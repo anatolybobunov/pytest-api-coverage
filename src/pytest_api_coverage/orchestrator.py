@@ -131,7 +131,4 @@ class MultiSpecOrchestrator:
                 prefix=spec.name,
             )
             if written:
-                print(
-                    f"\n[api-coverage] Reports for '{spec.name}' written to: "
-                    f"{self.settings.output_dir}"
-                )
+                print(f"\n[api-coverage] Reports for '{spec.name}' written to: {self.settings.output_dir}")

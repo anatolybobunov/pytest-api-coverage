@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-
 MINIMAL_SPEC = """
 openapi: "3.0.0"
 info:
@@ -73,9 +72,7 @@ def test_request_to_unknown_url_no_error(pytester: pytest.Pytester) -> None:
     spec = pytester.path / "auth.yaml"
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
-    config_file.write_text(
-        "specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n"
-    )
+    config_file.write_text("specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n")
     pytester.makepyfile("""
         def test_placeholder():
             pass
@@ -114,9 +111,7 @@ def test_zero_matched_requests_writes_files(pytester: pytest.Pytester) -> None:
     spec = pytester.path / "auth.yaml"
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
-    config_file.write_text(
-        "specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n"
-    )
+    config_file.write_text("specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n")
     pytester.makepyfile("""
         def test_placeholder():
             pass

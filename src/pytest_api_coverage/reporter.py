@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urlparse
 
 from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCoverage
 from pytest_api_coverage.schemas import SwaggerSpec
@@ -355,4 +354,3 @@ class CoverageReporter:
                 "origins_count": len(origins_data),
             },
         }
-

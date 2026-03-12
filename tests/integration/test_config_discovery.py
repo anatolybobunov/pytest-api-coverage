@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # Minimal OpenAPI YAML content for spec path validation to pass
 _MINIMAL_OPENAPI = "openapi: '3.0.0'\ninfo:\n  title: Test\n  version: '1.0'\npaths: {}\n"
 

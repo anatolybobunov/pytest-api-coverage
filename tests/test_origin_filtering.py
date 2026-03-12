@@ -155,9 +155,7 @@ class TestStripPrefixes:
             },
         ]
 
-        report = make_coverage_report(
-            spec, interactions, strip_prefixes=["/v1", "/api/v2", "/proxy/api/v3"]
-        )
+        report = make_coverage_report(spec, interactions, strip_prefixes=["/v1", "/api/v2", "/proxy/api/v3"])
 
         # All 3 should match /users
         assert report["summary"]["total_requests"] == 3

@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 
 
@@ -82,11 +80,7 @@ class TestFromDict:
     def test_from_dict_reconstructs_specs(self) -> None:
         """from_dict() reconstructs SpecConfig objects from the specs list."""
         settings = CoverageSettings.from_dict(
-            {
-                "specs": [
-                    {"name": "auth", "urls": ["https://auth.example.com"], "path": "./auth.yaml"}
-                ]
-            }
+            {"specs": [{"name": "auth", "urls": ["https://auth.example.com"], "path": "./auth.yaml"}]}
         )
         assert len(settings.specs) == 1
         spec = settings.specs[0]
@@ -136,9 +130,7 @@ class TestFromPytestConfig:
         assert spec.url == "https://orders.example.com/openapi.json"
         assert spec.urls == ["https://orders.example.com"]
 
-    def test_from_pytest_config_swagger_wins_over_spec_flags(
-        self, mocker: Any, capsys: Any
-    ) -> None:
+    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, capsys: Any) -> None:
         """When --swagger and spec flags both set, swagger wins, specs is empty, warning printed."""
         mock_config = _make_mock_config(
             mocker,
@@ -186,7 +178,7 @@ def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
         "swagger": None,
-        "coverage_spec_name": None,          # <- missing
+        "coverage_spec_name": None,  # <- missing
         "coverage_spec_path": str(spec_file),
         "coverage_spec_url": None,
         "coverage_spec_base_url": ["https://api.example.com"],
@@ -212,8 +204,8 @@ def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):
     """output_dir in coverage-config.yaml must be applied when CLI option is default."""
-    from unittest.mock import MagicMock
     from pathlib import Path
+    from unittest.mock import MagicMock
 
     # Create a config file with top-level output_dir
     config_file = tmp_path / "coverage-config.yaml"
@@ -236,7 +228,7 @@ def test_top_level_output_dir_applied_from_config_file(tmp_path):
         "coverage_spec_url": None,
         "coverage_spec_base_url": None,
         "coverage_config": str(config_file),
-        "coverage_output": "coverage-output",   # default value
+        "coverage_output": "coverage-output",  # default value
         "coverage_format": "json,csv,html",
         "coverage_base_url": None,
         "coverage_include_base_url": None,
@@ -251,8 +243,8 @@ def test_top_level_output_dir_applied_from_config_file(tmp_path):
 
 def test_cli_output_dir_overrides_config_file(tmp_path):
     """Explicit --coverage-output CLI flag must win over config file output_dir."""
-    from unittest.mock import MagicMock
     from pathlib import Path
+    from unittest.mock import MagicMock
 
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text("output_dir: from-config\nspecs: []\n")
@@ -265,7 +257,7 @@ def test_cli_output_dir_overrides_config_file(tmp_path):
         "coverage_spec_url": None,
         "coverage_spec_base_url": None,
         "coverage_config": str(config_file),
-        "coverage_output": "from-cli",         # explicit CLI value
+        "coverage_output": "from-cli",  # explicit CLI value
         "coverage_format": "json,csv,html",
         "coverage_base_url": None,
         "coverage_include_base_url": None,

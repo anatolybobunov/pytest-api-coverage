@@ -1,4 +1,5 @@
 """Multi-spec configuration loader."""
+
 from __future__ import annotations
 
 import json
@@ -69,9 +70,7 @@ def _discover_config_file(rootpath: Path) -> Path | None:
     yaml_candidate = rootpath / "coverage-config.yaml"
     json_candidate = rootpath / "coverage-config.json"
     if yaml_candidate.exists() and json_candidate.exists():
-        print(
-            "\n[api-coverage] Warning: Both coverage-config.yaml and coverage-config.json found; using YAML"
-        )
+        print("\n[api-coverage] Warning: Both coverage-config.yaml and coverage-config.json found; using YAML")
         return yaml_candidate
     if yaml_candidate.exists():
         return yaml_candidate

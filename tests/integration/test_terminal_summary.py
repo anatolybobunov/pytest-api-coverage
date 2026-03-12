@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-
 MINIMAL_SPEC = """
 openapi: "3.0.0"
 info:
@@ -84,11 +83,13 @@ def test_multi_spec_terminal_output(pytester: pytest.Pytester) -> None:
     )
     result.assert_outcomes(passed=1)
 
-    result.stdout.fnmatch_lines([
-        "*API Coverage Summary (2 specs)*",
-        "*auth*/*endpoints*%*req*",
-        "*orders*/*endpoints*%*req*",
-    ])
+    result.stdout.fnmatch_lines(
+        [
+            "*API Coverage Summary (2 specs)*",
+            "*auth*/*endpoints*%*req*",
+            "*orders*/*endpoints*%*req*",
+        ]
+    )
 
 
 def test_multi_spec_totals_row(pytester: pytest.Pytester) -> None:
@@ -106,9 +107,11 @@ def test_multi_spec_totals_row(pytester: pytest.Pytester) -> None:
     )
     result.assert_outcomes(passed=1)
 
-    result.stdout.fnmatch_lines([
-        "*TOTAL*/*endpoints*%*req*unmatched*",
-    ])
+    result.stdout.fnmatch_lines(
+        [
+            "*TOTAL*/*endpoints*%*req*unmatched*",
+        ]
+    )
 
 
 def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
@@ -147,16 +150,18 @@ def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
     assert (out / "coverage.html").stat().st_size > 0, "coverage.html must be non-empty"
     assert (out / "coverage.csv").stat().st_size > 0, "coverage.csv must be non-empty"
 
-    result.stdout.fnmatch_lines([
-        "*API Coverage Summary*",
-        "*spec*/*endpoints*%*req*",
-    ])
+    result.stdout.fnmatch_lines(
+        [
+            "*API Coverage Summary*",
+            "*spec*/*endpoints*%*req*",
+        ]
+    )
 
 
 def test_split_summary_has_separator(testdir, swagger_file=None):
     """_print_split_summary must produce a write_sep header like other modes."""
-    from io import StringIO
-    from unittest.mock import MagicMock, call
+    from unittest.mock import MagicMock
+
     from pytest_api_coverage.plugin import _print_split_summary
 
     tr = MagicMock()
@@ -187,6 +192,7 @@ def test_split_summary_has_separator(testdir, swagger_file=None):
 def test_swagger_load_failure_shown_in_terminal_summary():
     """When swagger fails to load, terminal summary must show the error."""
     from unittest.mock import MagicMock, patch
+
     from pytest_api_coverage.plugin import CoverageSinglePlugin
 
     config = MagicMock()
@@ -223,7 +229,8 @@ def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
     result = pytester.runpytest(
         "--coverage-config=coverage-config.yaml",
         "--coverage-output=out",
-        "-n", "2",
+        "-n",
+        "2",
     )
     result.assert_outcomes(passed=1)
 
@@ -237,6 +244,7 @@ def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
 def test_zero_requests_captured_shows_warning():
     """When spec loaded OK but no requests captured, terminal summary must warn."""
     from unittest.mock import MagicMock, patch
+
     from pytest_api_coverage.plugin import CoverageSinglePlugin
 
     config = MagicMock()
@@ -266,10 +274,11 @@ def test_zero_requests_captured_shows_warning():
 
 def test_terminal_summary_omits_html_when_not_requested():
     """When HTML format not requested, terminal summary must not print coverage.html."""
-    from unittest.mock import MagicMock
-    from pytest_api_coverage.plugin import _print_terminal_summary
-    from pytest_api_coverage.config.settings import CoverageSettings
     from pathlib import Path
+    from unittest.mock import MagicMock
+
+    from pytest_api_coverage.config.settings import CoverageSettings
+    from pytest_api_coverage.plugin import _print_terminal_summary
 
     tr = MagicMock()
     report_data = {
@@ -286,7 +295,7 @@ def test_terminal_summary_omits_html_when_not_requested():
     settings = CoverageSettings(
         swagger=None,
         output_dir=Path("my-reports"),
-        formats={"json", "csv"},   # no html
+        formats={"json", "csv"},  # no html
     )
     _print_terminal_summary(tr, report_data, settings)
 
@@ -297,10 +306,11 @@ def test_terminal_summary_omits_html_when_not_requested():
 
 def test_terminal_summary_shows_correct_output_dir():
     """Terminal summary must show the configured output dir, not hardcoded coverage.html."""
-    from unittest.mock import MagicMock
-    from pytest_api_coverage.plugin import _print_terminal_summary
-    from pytest_api_coverage.config.settings import CoverageSettings
     from pathlib import Path
+    from unittest.mock import MagicMock
+
+    from pytest_api_coverage.config.settings import CoverageSettings
+    from pytest_api_coverage.plugin import _print_terminal_summary
 
     tr = MagicMock()
     report_data = {

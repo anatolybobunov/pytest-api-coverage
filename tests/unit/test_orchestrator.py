@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -174,15 +174,11 @@ class TestRouteInteraction:
         orch = MultiSpecOrchestrator(settings)
 
         # /auth/users should match
-        match_interaction = make_interaction(
-            "https://api.example.com/auth/users", path="/auth/users"
-        )
+        match_interaction = make_interaction("https://api.example.com/auth/users", path="/auth/users")
         assert orch.route_interaction(match_interaction) == "auth"
 
         # /authentic should NOT match (partial segment)
-        no_match_interaction = make_interaction(
-            "https://api.example.com/authentic", path="/authentic"
-        )
+        no_match_interaction = make_interaction("https://api.example.com/authentic", path="/authentic")
         assert orch.route_interaction(no_match_interaction) is None
 
 

@@ -1,4 +1,5 @@
 """Unit tests for multi_spec loader module."""
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,6 @@ from pytest_api_coverage.config.multi_spec import (
     _discover_config_file,
     load_multi_spec_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -138,7 +138,12 @@ def test_load_skips_both_path_and_url(tmp_path: Path, capsys: pytest.CaptureFixt
     """Entry with both 'path' and 'url' is skipped; warning printed; others still returned."""
     data = {
         "specs": [
-            {"name": "users-api", "urls": ["http://localhost:8000"], "path": "spec.yaml", "url": "http://example.com/spec.yaml"},
+            {
+                "name": "users-api",
+                "urls": ["http://localhost:8000"],
+                "path": "spec.yaml",
+                "url": "http://example.com/spec.yaml",
+            },
             {"name": "orders-api", "urls": ["http://localhost:8001"]},
         ]
     }
