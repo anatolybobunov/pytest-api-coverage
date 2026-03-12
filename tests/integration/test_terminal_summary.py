@@ -162,7 +162,7 @@ def test_split_summary_has_separator(testdir, swagger_file=None):
     """_print_split_summary must produce a write_sep header like other modes."""
     from unittest.mock import MagicMock
 
-    from pytest_api_coverage.plugin import _print_split_summary
+    from pytest_api_coverage.terminal import print_split_summary
 
     tr = MagicMock()
     report_data = {
@@ -185,7 +185,7 @@ def test_split_summary_has_separator(testdir, swagger_file=None):
             }
         },
     }
-    _print_split_summary(tr, report_data)
+    print_split_summary(tr, report_data)
     tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
 
 
@@ -278,7 +278,7 @@ def test_terminal_summary_omits_html_when_not_requested():
     from unittest.mock import MagicMock
 
     from pytest_api_coverage.config.settings import CoverageSettings
-    from pytest_api_coverage.plugin import _print_terminal_summary
+    from pytest_api_coverage.terminal import print_terminal_summary
 
     tr = MagicMock()
     report_data = {
@@ -297,7 +297,7 @@ def test_terminal_summary_omits_html_when_not_requested():
         output_dir=Path("my-reports"),
         formats={"json", "csv"},  # no html
     )
-    _print_terminal_summary(tr, report_data, settings)
+    print_terminal_summary(tr, report_data, settings)
 
     written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
     assert "coverage.html" not in written_text
@@ -310,7 +310,7 @@ def test_terminal_summary_shows_correct_output_dir():
     from unittest.mock import MagicMock
 
     from pytest_api_coverage.config.settings import CoverageSettings
-    from pytest_api_coverage.plugin import _print_terminal_summary
+    from pytest_api_coverage.terminal import print_terminal_summary
 
     tr = MagicMock()
     report_data = {
@@ -329,7 +329,7 @@ def test_terminal_summary_shows_correct_output_dir():
         output_dir=Path("custom-reports"),
         formats={"html"},
     )
-    _print_terminal_summary(tr, report_data, settings)
+    print_terminal_summary(tr, report_data, settings)
 
     written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
     assert "custom-reports" in written_text
