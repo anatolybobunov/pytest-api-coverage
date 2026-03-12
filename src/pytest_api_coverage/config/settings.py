@@ -188,13 +188,26 @@ class CoverageSettings:
             logger.warning("--swagger cannot be combined with multi-spec flags; using --swagger mode")
         elif any_spec_flag:
             if not spec_name:
-                logger.warning(
-                    "--coverage-spec-path/--coverage-spec-url requires --coverage-spec-name; skipping spec"
+                import pytest as _pytest  # noqa: PLC0415
+
+                _pytest.exit(
+                    "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
+                    returncode=1,
                 )
             elif not spec_base_urls:
-                logger.warning("--coverage-spec-name requires --coverage-spec-base-url")
+                import pytest as _pytest  # noqa: PLC0415
+
+                _pytest.exit(
+                    "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
+                    returncode=1,
+                )
             elif spec_path and spec_url:
-                logger.warning("--coverage-spec-path and --coverage-spec-url are mutually exclusive; skipping spec")
+                import pytest as _pytest  # noqa: PLC0415
+
+                _pytest.exit(
+                    "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+                    returncode=1,
+                )
             else:
                 specs = [
                     SpecConfig(
