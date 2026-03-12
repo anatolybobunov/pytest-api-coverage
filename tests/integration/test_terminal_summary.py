@@ -232,3 +232,33 @@ def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
     assert (out / "auth-coverage.json").stat().st_size > 0, "auth-coverage.json must be non-empty"
     assert (out / "orders-coverage.html").exists(), "orders-coverage.html must exist"
     assert (out / "orders-coverage.html").stat().st_size > 0, "orders-coverage.html must be non-empty"
+
+
+def test_zero_requests_captured_shows_warning():
+    """When spec loaded OK but no requests captured, terminal summary must warn."""
+    from unittest.mock import MagicMock, patch
+    from pytest_api_coverage.plugin import CoverageSinglePlugin
+
+    config = MagicMock()
+    settings_mock = MagicMock()
+    settings_mock.swagger = "swagger.json"
+    settings_mock.specs = []
+    settings_mock.is_enabled.return_value = True
+
+    swagger_spec_mock = MagicMock()
+    collector_mock = MagicMock()
+    collector_mock.has_data.return_value = False
+
+    with patch("pytest_api_coverage.plugin.CoverageSettings.from_pytest_config", return_value=settings_mock):
+        plugin = CoverageSinglePlugin(config)
+
+    plugin.swagger_spec = swagger_spec_mock
+    plugin.collector = collector_mock
+    plugin._no_requests_captured = True  # simulate the flag set in pytest_sessionfinish
+
+    tr = MagicMock()
+    plugin.pytest_terminal_summary(tr)
+
+    tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
+    written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
+    assert "0" in written_text or "no" in written_text.lower() or "captured" in written_text.lower()

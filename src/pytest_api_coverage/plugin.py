@@ -151,6 +151,7 @@ class CoverageSinglePlugin:
         self._adapters = [cls(self.collector) for cls in ADAPTER_REGISTRY]
         self.swagger_spec: SwaggerSpec | None = None
         self._swagger_load_error: str | None = None
+        self._no_requests_captured: bool = False
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
         if self.settings.specs:
@@ -178,8 +179,11 @@ class CoverageSinglePlugin:
         if self.settings.specs and self.orchestrator:
             self.orchestrator.process_interactions(self.collector.get_data())
             self.orchestrator.generate_all_reports()
-        elif self.collector.has_data() and self.swagger_spec:
-            self._generate_report()
+        elif self.swagger_spec:
+            if self.collector.has_data():
+                self._generate_report()
+            else:
+                self._no_requests_captured = True
 
     @pytest.hookimpl
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
@@ -192,6 +196,13 @@ class CoverageSinglePlugin:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
                 f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+            )
+        elif self._no_requests_captured:
+            terminalreporter.write_sep("=", "API Coverage Summary")
+            terminalreporter.write_line(
+                "[api-coverage] 0 HTTP requests captured. "
+                "Check that tests use 'requests' or 'httpx' directly and that "
+                "mocking libraries are not intercepting at the socket level."
             )
 
     @pytest.hookimpl
