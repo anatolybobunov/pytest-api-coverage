@@ -262,3 +262,64 @@ def test_zero_requests_captured_shows_warning():
     tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
     written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
     assert "0" in written_text or "no" in written_text.lower() or "captured" in written_text.lower()
+
+
+def test_terminal_summary_omits_html_when_not_requested():
+    """When HTML format not requested, terminal summary must not print coverage.html."""
+    from unittest.mock import MagicMock
+    from pytest_api_coverage.plugin import _print_terminal_summary
+    from pytest_api_coverage.config.settings import CoverageSettings
+    from pathlib import Path
+
+    tr = MagicMock()
+    report_data = {
+        "swagger_source": "myapi.yaml",
+        "split_by_origin": False,
+        "summary": {
+            "covered_endpoints": 3,
+            "total_endpoints": 5,
+            "coverage_percentage": 60.0,
+            "total_requests": 10,
+        },
+        "endpoints": [],
+    }
+    settings = CoverageSettings(
+        swagger=None,
+        output_dir=Path("my-reports"),
+        formats={"json", "csv"},   # no html
+    )
+    _print_terminal_summary(tr, report_data, settings)
+
+    written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
+    assert "coverage.html" not in written_text
+    assert "my-reports" in written_text or "json" in written_text.lower() or "csv" in written_text.lower()
+
+
+def test_terminal_summary_shows_correct_output_dir():
+    """Terminal summary must show the configured output dir, not hardcoded coverage.html."""
+    from unittest.mock import MagicMock
+    from pytest_api_coverage.plugin import _print_terminal_summary
+    from pytest_api_coverage.config.settings import CoverageSettings
+    from pathlib import Path
+
+    tr = MagicMock()
+    report_data = {
+        "swagger_source": "myapi.yaml",
+        "split_by_origin": False,
+        "summary": {
+            "covered_endpoints": 3,
+            "total_endpoints": 5,
+            "coverage_percentage": 60.0,
+            "total_requests": 10,
+        },
+        "endpoints": [],
+    }
+    settings = CoverageSettings(
+        swagger=None,
+        output_dir=Path("custom-reports"),
+        formats={"html"},
+    )
+    _print_terminal_summary(tr, report_data, settings)
+
+    written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
+    assert "custom-reports" in written_text

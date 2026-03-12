@@ -191,7 +191,7 @@ class CoverageSinglePlugin:
         if self.orchestrator:
             _print_multi_spec_summary(terminalreporter, self.orchestrator)
         elif self.report_data:
-            _print_terminal_summary(terminalreporter, self.report_data)
+            _print_terminal_summary(terminalreporter, self.report_data, self.settings)
         elif self._swagger_load_error:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
@@ -324,7 +324,7 @@ class CoverageMasterPlugin:
         if self.orchestrator:
             _print_multi_spec_summary(terminalreporter, self.orchestrator)
         elif self.report_data:
-            _print_terminal_summary(terminalreporter, self.report_data)
+            _print_terminal_summary(terminalreporter, self.report_data, self.settings)
         elif self._swagger_load_error:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
@@ -439,7 +439,11 @@ class CoverageWorkerPlugin:
             adapter.uninstall()
 
 
-def _print_terminal_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:
+def _print_terminal_summary(
+    terminalreporter: TerminalReporter,
+    report_data: dict[str, Any],
+    settings: CoverageSettings,
+) -> None:
     """Print coverage summary to pytest terminal (single-spec / --swagger mode).
 
     Uses unified table format: one row with spec name, endpoints, %, req count, filename.
@@ -447,6 +451,7 @@ def _print_terminal_summary(terminalreporter: TerminalReporter, report_data: dic
     Args:
         terminalreporter: pytest TerminalReporter
         report_data: Coverage report data
+        settings: Coverage settings (used to determine output path)
     """
     if report_data.get("split_by_origin"):
         _print_split_summary(terminalreporter, report_data)
@@ -455,9 +460,21 @@ def _print_terminal_summary(terminalreporter: TerminalReporter, report_data: dic
     summary = report_data.get("summary", {})
     spec_name = pathlib.Path(str(report_data.get("swagger_source", "coverage"))).stem
     terminalreporter.write_sep("=", "API Coverage Summary")
+
+    # Build file reference based on actual requested formats
+    if "html" in settings.formats:
+        file_ref = str(settings.output_dir / "coverage.html")
+    elif "json" in settings.formats:
+        file_ref = str(settings.output_dir / "coverage.json")
+    elif "csv" in settings.formats:
+        file_ref = str(settings.output_dir / "coverage.csv")
+    else:
+        file_ref = str(settings.output_dir)
+
     terminalreporter.write_line(
         f"{spec_name}   {summary.get('covered_endpoints', 0)}/{summary.get('total_endpoints', 0)} endpoints"
-        f"   {summary.get('coverage_percentage', 0.0):.1f}%   {summary.get('total_requests', 0)} req   coverage.html"
+        f"   {summary.get('coverage_percentage', 0.0):.1f}%   {summary.get('total_requests', 0)} req"
+        f"   {file_ref}"
     )
 
 
