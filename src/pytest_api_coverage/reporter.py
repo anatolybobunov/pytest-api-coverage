@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCoverage
 from pytest_api_coverage.schemas import SwaggerSpec
+from pytest_api_coverage.utils import normalize_origin
 
 
 class CoverageReporter:
@@ -32,8 +33,8 @@ class CoverageReporter:
             split_by_origin: Generate separate coverage per origin
         """
         self.swagger_spec = swagger_spec
-        self.base_url = self._normalize_origin(base_url) if base_url else None
-        self.include_base_urls = {self._normalize_origin(u) for u in (include_base_urls or set()) if u}
+        self.base_url = normalize_origin(base_url) if base_url else None
+        self.include_base_urls = {normalize_origin(u) for u in (include_base_urls or set()) if u}
         self.strip_prefixes = strip_prefixes or []
         self.split_by_origin = split_by_origin
 
@@ -54,36 +55,6 @@ class CoverageReporter:
         else:
             self._coverage = self._create_empty_coverage()
             self._coverage_by_origin = {}  # Not used
-
-    def _normalize_origin(self, url: str) -> str:
-        """Extract and normalize origin from URL (scheme://host[:port]).
-
-        Standard ports (80 for http, 443 for https) are omitted.
-
-        Args:
-            url: Full URL or origin
-
-        Returns:
-            Normalized origin string
-        """
-        parsed = urlparse(url)
-
-        # Handle case where url is just host without scheme
-        if not parsed.scheme:
-            # Try parsing with https prefix
-            parsed = urlparse(f"https://{url}")
-
-        scheme = parsed.scheme or "https"
-        host = parsed.hostname or parsed.netloc or url
-
-        port = parsed.port
-        # Omit standard ports
-        if port and ((scheme == "https" and port == 443) or (scheme == "http" and port == 80)):
-            port = None
-
-        if port:
-            return f"{scheme}://{host}:{port}"
-        return f"{scheme}://{host}"
 
     def _build_prefix_list(self) -> list[str]:
         """Build sorted list of path prefixes to strip.
@@ -181,7 +152,7 @@ class CoverageReporter:
         if not self.base_url and not self.include_base_urls:
             return True
 
-        origin = self._normalize_origin(url)
+        origin = normalize_origin(url)
 
         # Single origin filter
         if self.base_url:
@@ -253,7 +224,7 @@ class CoverageReporter:
 
             # Record hit
             if self.split_by_origin:
-                origin = self._normalize_origin(url)
+                origin = normalize_origin(url)
                 coverage = self._get_coverage_for_origin(origin)
                 coverage[endpoint_key].record_hit(status_code, test_name)
             else:

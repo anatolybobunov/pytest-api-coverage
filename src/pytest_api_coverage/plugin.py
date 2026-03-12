@@ -326,21 +326,24 @@ class CoverageMasterPlugin:
 def _route_interaction_for_worker(
     interaction: dict[str, Any], specs: list[Any]
 ) -> str | None:
-    """Minimal routing for worker pre-filtering — duplicates orchestrator logic.
+    """Minimal routing for worker pre-filtering.
 
     Avoids importing MultiSpecOrchestrator on workers to keep them lightweight.
     """
     from urllib.parse import urlparse  # noqa: PLC0415
 
+    from pytest_api_coverage.utils import normalize_origin  # noqa: PLC0415
+
     url = interaction.get("request", {}).get("url", "")
+    req_origin = normalize_origin(url)
+
     for spec in specs:
         for spec_url in spec.urls:
-            parsed_req = urlparse(url)
-            parsed_spec = urlparse(spec_url)
-            req_origin = f"{parsed_req.scheme}://{parsed_req.netloc}"
-            spec_origin = f"{parsed_spec.scheme}://{parsed_spec.netloc}"
+            spec_origin = normalize_origin(spec_url)
             if req_origin != spec_origin:
                 continue
+            parsed_spec = urlparse(spec_url)
+            parsed_req = urlparse(url)
             spec_path = (parsed_spec.path or "/").rstrip("/")
             req_path = parsed_req.path or "/"
             if req_path == parsed_spec.path or req_path.startswith(spec_path + "/"):

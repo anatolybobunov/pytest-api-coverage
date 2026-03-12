@@ -1,35 +1,27 @@
 """Tests for origin filtering and path normalization."""
 
-from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerSpec
+from pytest_api_coverage.utils import normalize_origin
 
 
 class TestOriginNormalization:
     """Tests for origin normalization."""
 
-    def test_normalize_standard_https(self, simple_swagger_spec: SwaggerSpec):
+    def test_normalize_standard_https(self):
         """Standard HTTPS port should be omitted."""
-        reporter = CoverageReporter(simple_swagger_spec)
-        origin = reporter._normalize_origin("https://api.example.com:443/path")
-        assert origin == "https://api.example.com"
+        assert normalize_origin("https://api.example.com:443/path") == "https://api.example.com"
 
-    def test_normalize_standard_http(self, simple_swagger_spec: SwaggerSpec):
+    def test_normalize_standard_http(self):
         """Standard HTTP port should be omitted."""
-        reporter = CoverageReporter(simple_swagger_spec)
-        origin = reporter._normalize_origin("http://api.example.com:80/path")
-        assert origin == "http://api.example.com"
+        assert normalize_origin("http://api.example.com:80/path") == "http://api.example.com"
 
-    def test_normalize_non_standard_port(self, simple_swagger_spec: SwaggerSpec):
+    def test_normalize_non_standard_port(self):
         """Non-standard port should be preserved."""
-        reporter = CoverageReporter(simple_swagger_spec)
-        origin = reporter._normalize_origin("https://api.example.com:8443/path")
-        assert origin == "https://api.example.com:8443"
+        assert normalize_origin("https://api.example.com:8443/path") == "https://api.example.com:8443"
 
-    def test_normalize_no_scheme(self, simple_swagger_spec: SwaggerSpec):
+    def test_normalize_no_scheme(self):
         """URL without scheme gets https default."""
-        reporter = CoverageReporter(simple_swagger_spec)
-        origin = reporter._normalize_origin("api.example.com")
-        assert origin == "https://api.example.com"
+        assert normalize_origin("api.example.com") == "https://api.example.com"
 
 
 class TestSingleBaseUrlFilter:

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerParser
+from pytest_api_coverage.utils import normalize_origin
 from pytest_api_coverage.writers import write_reports
 
 
@@ -38,7 +39,7 @@ class MultiSpecOrchestrator:
             try:
                 source = spec.url if spec.url else spec.path
                 swagger_spec = SwaggerParser.parse(source)
-                origins = {self._normalize_origin(u) for u in spec.urls}
+                origins = {normalize_origin(u) for u in spec.urls}
                 reporter = CoverageReporter(
                     swagger_spec,
                     include_base_urls=origins,
@@ -47,24 +48,6 @@ class MultiSpecOrchestrator:
                 self._specs.append(spec)
             except Exception as e:
                 print(f"\n[api-coverage] Warning: Failed to load spec '{spec.name}': {e}")
-
-    def _normalize_origin(self, url: str) -> str:
-        """Extract and normalize origin from URL (scheme://host[:port]).
-
-        Standard ports (80/http, 443/https) are omitted.
-        """
-        parsed = urlparse(url)
-        if not parsed.scheme:
-            parsed = urlparse(f"https://{url}")
-
-        scheme = parsed.scheme or "https"
-        host = parsed.hostname or parsed.netloc or url
-        port = parsed.port
-
-        if port and ((scheme == "https" and port == 443) or (scheme == "http" and port == 80)):
-            port = None
-
-        return f"{scheme}://{host}:{port}" if port else f"{scheme}://{host}"
 
     def _warn_overlapping_urls(self) -> None:
         """Check for URL overlap across specs and warn. Uses exact URL string comparison."""
