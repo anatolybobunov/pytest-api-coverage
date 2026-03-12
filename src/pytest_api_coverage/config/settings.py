@@ -178,6 +178,7 @@ class CoverageSettings:
         spec_base_urls = config.getoption("coverage_spec_base_url", None) or []
 
         specs: list[SpecConfig] = []
+        top_level: dict[str, Any] = {}
         any_spec_flag = spec_name or spec_path or spec_url
 
         if swagger and any_spec_flag:
@@ -239,10 +240,24 @@ class CoverageSettings:
                         returncode=1,
                     )
 
+        # Apply top-level config values; CLI options take precedence over config file.
+        _default_output = "coverage-output"
+        _default_formats = "json,csv,html"
+        raw_output = config.getoption("coverage_output", _default_output)
+        raw_formats = config.getoption("coverage_format", _default_formats)
+
+        effective_output = raw_output
+        if raw_output == _default_output and "output_dir" in top_level:
+            effective_output = top_level["output_dir"]
+
+        effective_formats = raw_formats
+        if raw_formats == _default_formats and "formats" in top_level:
+            effective_formats = top_level["formats"]
+
         return cls(
             swagger=swagger,
-            output_dir=Path(config.getoption("coverage_output", "coverage-output")),
-            formats=config.getoption("coverage_format", "json,csv,html"),
+            output_dir=Path(effective_output),
+            formats=effective_formats,
             base_url=config.getoption("coverage_base_url", None),
             include_base_urls=config.getoption("coverage_include_base_url", None) or "",  # type: ignore[arg-type]
             strip_prefixes=config.getoption("coverage_strip_prefix", None) or "",  # type: ignore[arg-type]

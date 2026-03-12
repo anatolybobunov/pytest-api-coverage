@@ -208,3 +208,71 @@ def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
 
     captured = capsys.readouterr()
     assert "warning" in captured.out.lower() or "name" in captured.out.lower()
+
+
+def test_top_level_output_dir_applied_from_config_file(tmp_path):
+    """output_dir in coverage-config.yaml must be applied when CLI option is default."""
+    from unittest.mock import MagicMock
+    from pathlib import Path
+
+    # Create a config file with top-level output_dir
+    config_file = tmp_path / "coverage-config.yaml"
+    spec_file = tmp_path / "api.yaml"
+    spec_file.write_text("openapi: '3.0.0'")
+    config_file.write_text(
+        f"output_dir: custom-reports\n"
+        f"specs:\n"
+        f"  - name: myapi\n"
+        f"    urls:\n"
+        f"      - https://api.example.com\n"
+        f"    path: {spec_file}\n"
+    )
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "swagger": None,
+        "coverage_spec_name": None,
+        "coverage_spec_path": None,
+        "coverage_spec_url": None,
+        "coverage_spec_base_url": None,
+        "coverage_config": str(config_file),
+        "coverage_output": "coverage-output",   # default value
+        "coverage_format": "json,csv,html",
+        "coverage_base_url": None,
+        "coverage_include_base_url": None,
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    settings = CoverageSettings.from_pytest_config(config)
+    assert settings.output_dir == Path("custom-reports")
+
+
+def test_cli_output_dir_overrides_config_file(tmp_path):
+    """Explicit --coverage-output CLI flag must win over config file output_dir."""
+    from unittest.mock import MagicMock
+    from pathlib import Path
+
+    config_file = tmp_path / "coverage-config.yaml"
+    config_file.write_text("output_dir: from-config\nspecs: []\n")
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "swagger": None,
+        "coverage_spec_name": None,
+        "coverage_spec_path": None,
+        "coverage_spec_url": None,
+        "coverage_spec_base_url": None,
+        "coverage_config": str(config_file),
+        "coverage_output": "from-cli",         # explicit CLI value
+        "coverage_format": "json,csv,html",
+        "coverage_base_url": None,
+        "coverage_include_base_url": None,
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    settings = CoverageSettings.from_pytest_config(config)
+    assert settings.output_dir == Path("from-cli")
