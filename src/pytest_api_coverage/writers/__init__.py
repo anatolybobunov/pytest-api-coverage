@@ -16,7 +16,7 @@ class WriterProtocol(Protocol):
     """Protocol for report writer classes."""
 
     @classmethod
-    def write(cls, report_data: dict[str, Any], output_path: Path) -> Path:
+    def write(cls, report_data: dict[str, Any], output_path: str | Path) -> Path:
         """Write report data to a file.
 
         Args:
