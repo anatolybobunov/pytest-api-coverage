@@ -89,6 +89,16 @@ class MultiSpecOrchestrator:
     # Public API
     # ------------------------------------------------------------------
 
+    @property
+    def specs(self) -> list[SpecConfig]:
+        """Read-only view of loaded specs."""
+        return self._specs
+
+    @property
+    def reporters(self) -> dict[str, CoverageReporter]:
+        """Read-only view of spec reporters."""
+        return self._reporters
+
     def route_interaction(self, interaction: dict[str, Any]) -> str | None:
         """Return the spec name that owns this interaction, or None.
 

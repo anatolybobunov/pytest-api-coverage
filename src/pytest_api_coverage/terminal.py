@@ -60,8 +60,8 @@ def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: M
         terminalreporter: pytest TerminalReporter
         orchestrator: MultiSpecOrchestrator with all spec reporters
     """
-    specs = orchestrator._specs
-    reporters = orchestrator._reporters
+    specs = orchestrator.specs
+    reporters = orchestrator.reporters
     if not specs:
         return
 

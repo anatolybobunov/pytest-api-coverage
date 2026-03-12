@@ -354,7 +354,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
 
             # Feed merged per-spec interactions directly to reporters
             for spec_name, interactions in merged.items():
-                reporter = self.orchestrator._reporters.get(spec_name)
+                reporter = self.orchestrator.reporters.get(spec_name)
                 if reporter:
                     reporter.process_interactions(interactions)
             self.orchestrator.generate_all_reports()
