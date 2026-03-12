@@ -159,7 +159,7 @@ def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
 
 
 def test_split_summary_has_separator(testdir, swagger_file=None):
-    """_print_split_summary must produce a write_sep header like other modes."""
+    """print_split_summary must produce a write_sep header like other modes."""
     from unittest.mock import MagicMock
 
     from pytest_api_coverage.terminal import print_split_summary
