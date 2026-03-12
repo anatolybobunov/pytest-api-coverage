@@ -19,3 +19,4 @@ coverage-output/
 .venv/
 
 .planning/
+.worktrees/
