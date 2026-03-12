@@ -75,7 +75,9 @@ def test_autodiscover_json(pytester: pytest.Pytester) -> None:
 def test_autodiscover_both_yaml_wins(pytester: pytest.Pytester) -> None:
     """When both coverage-config.yaml and coverage-config.json exist, YAML wins.
 
-    A warning is printed to indicate the YAML file was chosen over JSON.
+    YAML config has spec name 'auth'; JSON config has spec name 'orders'.
+    The terminal summary should show 'auth', confirming YAML was loaded.
+    A warning is emitted via logging (verified by caplog in unit tests).
     """
     pytester.makefile(".yaml", **{"coverage-config": _COVERAGE_CONFIG_ONE_SPEC})
     pytester.makefile(".json", **{"coverage-config": _COVERAGE_CONFIG_JSON_ONE_SPEC})
@@ -84,8 +86,9 @@ def test_autodiscover_both_yaml_wins(pytester: pytest.Pytester) -> None:
 
     result = pytester.runpytest("--collect-only", "-q")
 
-    # Warning about both files being present should appear
-    result.stdout.fnmatch_lines(["*coverage-config.yaml*", "*YAML*"])
+    # YAML config loads spec 'auth'; JSON config would load 'orders' — confirm YAML won
+    result.stdout.fnmatch_lines(["*auth*"])
+    result.stdout.no_fnmatch_line("*orders*")
     assert result.ret == 0
 
 

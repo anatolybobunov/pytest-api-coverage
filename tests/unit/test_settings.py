@@ -130,8 +130,10 @@ class TestFromPytestConfig:
         assert spec.url == "https://orders.example.com/openapi.json"
         assert spec.urls == ["https://orders.example.com"]
 
-    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, capsys: Any) -> None:
-        """When --swagger and spec flags both set, swagger wins, specs is empty, warning printed."""
+    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, caplog: Any) -> None:
+        """When --swagger and spec flags both set, swagger wins, specs is empty, warning logged."""
+        import logging
+
         mock_config = _make_mock_config(
             mocker,
             {
@@ -140,11 +142,11 @@ class TestFromPytestConfig:
                 "coverage_spec_base_url": ["https://auth.example.com"],
             },
         )
-        settings = CoverageSettings.from_pytest_config(mock_config)
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.swagger == "https://api.example.com/swagger.json"
         assert settings.specs == []
-        captured = capsys.readouterr()
-        assert "Warning" in captured.out or "warning" in captured.out.lower()
+        assert "warning" in caplog.text.lower() or "--swagger" in caplog.text.lower()
 
     def test_from_pytest_config_no_spec_flags_no_specs(self, mocker: Any) -> None:
         """When all new spec options are None, specs is empty."""
@@ -168,8 +170,9 @@ class TestFromPytestConfig:
         assert isinstance(settings.specs, list)
 
 
-def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
+def test_spec_path_without_name_prints_warning_not_traceback(caplog, tmp_path):
     """Missing --coverage-spec-name with --coverage-spec-path must warn, not crash."""
+    import logging
     from unittest.mock import MagicMock
 
     spec_file = tmp_path / "api.yaml"
@@ -193,13 +196,13 @@ def test_spec_path_without_name_prints_warning_not_traceback(capsys, tmp_path):
     config.rootpath = tmp_path
 
     # Must not raise
-    settings = CoverageSettings.from_pytest_config(config)
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        settings = CoverageSettings.from_pytest_config(config)
 
     # Must produce no specs (skipped due to missing name)
     assert settings.specs == []
 
-    captured = capsys.readouterr()
-    assert "warning" in captured.out.lower() or "name" in captured.out.lower()
+    assert "warning" in caplog.text.lower() or "name" in caplog.text.lower()
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):

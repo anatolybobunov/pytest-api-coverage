@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from pytest_api_coverage.config.settings import SpecConfig
+
+logger = logging.getLogger("pytest_api_coverage")
 
 
 def load_multi_spec_config(path: Path) -> tuple[list[SpecConfig], dict[str, Any]]:
@@ -24,11 +27,11 @@ def load_multi_spec_config(path: Path) -> tuple[list[SpecConfig], dict[str, Any]
         else:
             raw = json.loads(text)
     except Exception as e:
-        print(f"\n[api-coverage] Warning: Failed to load config {path}: {e}")
+        logger.warning("Failed to load config %s: %s", path, e)
         return [], {}
 
     if not isinstance(raw, dict):
-        print(f"\n[api-coverage] Warning: Config file {path} is not a mapping, skipping")
+        logger.warning("Config file %s is not a mapping, skipping", path)
         return [], {}
 
     top_level = {k: v for k, v in raw.items() if k != "specs"}
@@ -47,16 +50,16 @@ def _parse_spec_entry(entry: dict[str, Any]) -> SpecConfig | None:
     """Parse a single spec entry dict. Returns None and warns on validation failure."""
     name = entry.get("name")
     if not name:
-        print("\n[api-coverage] Warning: Spec entry missing 'name', skipping")
+        logger.warning("Spec entry missing 'name', skipping")
         return None
     urls = entry.get("urls")
     if not urls:
-        print(f"\n[api-coverage] Warning: Spec '{name}' has empty or missing 'urls', skipping")
+        logger.warning("Spec '%s' has empty or missing 'urls', skipping", name)
         return None
     path = entry.get("path")
     url = entry.get("url")
     if path and url:
-        print(f"\n[api-coverage] Warning: Spec '{name}' has both 'path' and 'url', skipping")
+        logger.warning("Spec '%s' has both 'path' and 'url', skipping", name)
         return None
     return SpecConfig(name=name, urls=urls, path=path, url=url)
 
@@ -70,7 +73,7 @@ def _discover_config_file(rootpath: Path) -> Path | None:
     yaml_candidate = rootpath / "coverage-config.yaml"
     json_candidate = rootpath / "coverage-config.json"
     if yaml_candidate.exists() and json_candidate.exists():
-        print("\n[api-coverage] Warning: Both coverage-config.yaml and coverage-config.json found; using YAML")
+        logger.warning("Both coverage-config.yaml and coverage-config.json found; using YAML")
         return yaml_candidate
     if yaml_candidate.exists():
         return yaml_candidate

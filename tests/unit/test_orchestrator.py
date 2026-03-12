@@ -96,8 +96,10 @@ class TestMultiSpecOrchestratorInit:
         # generate_all_reports() must not raise
         orch.generate_all_reports()
 
-    def test_overlapping_urls_prints_warning(self, auth_spec_file, orders_spec_file, capsys):
-        """Two specs share a URL -> warning is printed."""
+    def test_overlapping_urls_prints_warning(self, auth_spec_file, orders_spec_file, caplog):
+        """Two specs share a URL -> warning is logged."""
+        import logging
+
         from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 
         shared_url = "https://api.example.com"
@@ -108,11 +110,10 @@ class TestMultiSpecOrchestratorInit:
             ]
         )
 
-        MultiSpecOrchestrator(settings)
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            MultiSpecOrchestrator(settings)
 
-        captured = capsys.readouterr()
-        assert "Warning" in captured.out
-        assert shared_url in captured.out
+        assert shared_url in caplog.text
 
 
 class TestRouteInteraction:

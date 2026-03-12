@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pytest
+
+# Module-level logger — placed after all imports to satisfy E402
+logger = logging.getLogger("pytest_api_coverage")
 
 
 @dataclass
@@ -181,20 +185,16 @@ class CoverageSettings:
 
         if swagger and any_spec_flag:
             # --swagger cannot be combined with multi-spec flags; swagger wins
-            print("\n[api-coverage] Warning: --swagger cannot be combined with multi-spec flags; using --swagger mode")
+            logger.warning("--swagger cannot be combined with multi-spec flags; using --swagger mode")
         elif any_spec_flag:
             if not spec_name:
-                print(
-                    "\n[api-coverage] Warning: --coverage-spec-path/--coverage-spec-url requires "
-                    "--coverage-spec-name; skipping spec"
+                logger.warning(
+                    "--coverage-spec-path/--coverage-spec-url requires --coverage-spec-name; skipping spec"
                 )
             elif not spec_base_urls:
-                print("\n[api-coverage] Warning: --coverage-spec-name requires --coverage-spec-base-url")
+                logger.warning("--coverage-spec-name requires --coverage-spec-base-url")
             elif spec_path and spec_url:
-                print(
-                    "\n[api-coverage] Warning: --coverage-spec-path and --coverage-spec-url are "
-                    "mutually exclusive; skipping spec"
-                )
+                logger.warning("--coverage-spec-path and --coverage-spec-url are mutually exclusive; skipping spec")
             else:
                 specs = [
                     SpecConfig(

@@ -96,8 +96,10 @@ def test_load_returns_top_level_settings(yaml_with_top_level_settings: Path) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_load_skips_missing_name(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Entry without 'name' is skipped; warning printed; others still returned."""
+def test_load_skips_missing_name(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Entry without 'name' is skipped; warning logged; others still returned."""
+    import logging
+
     data = {
         "specs": [
             {"urls": ["http://localhost:8000"]},  # missing name
@@ -107,16 +109,18 @@ def test_load_skips_missing_name(tmp_path: Path, capsys: pytest.CaptureFixture[s
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text(yaml.dump(data), encoding="utf-8")
 
-    specs, _ = load_multi_spec_config(config_file)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        specs, _ = load_multi_spec_config(config_file)
 
     assert len(specs) == 1
     assert specs[0].name == "orders-api"
-    assert "missing" in captured.out.lower() or "name" in captured.out.lower()
+    assert "missing" in caplog.text.lower() or "name" in caplog.text.lower()
 
 
-def test_load_skips_empty_urls(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Entry with urls=[] is skipped; warning printed; others still returned."""
+def test_load_skips_empty_urls(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Entry with urls=[] is skipped; warning logged; others still returned."""
+    import logging
+
     data = {
         "specs": [
             {"name": "users-api", "urls": []},  # empty urls
@@ -126,16 +130,18 @@ def test_load_skips_empty_urls(tmp_path: Path, capsys: pytest.CaptureFixture[str
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text(yaml.dump(data), encoding="utf-8")
 
-    specs, _ = load_multi_spec_config(config_file)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        specs, _ = load_multi_spec_config(config_file)
 
     assert len(specs) == 1
     assert specs[0].name == "orders-api"
-    assert "url" in captured.out.lower() or "warn" in captured.out.lower()
+    assert "url" in caplog.text.lower() or "warn" in caplog.text.lower()
 
 
-def test_load_skips_both_path_and_url(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Entry with both 'path' and 'url' is skipped; warning printed; others still returned."""
+def test_load_skips_both_path_and_url(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Entry with both 'path' and 'url' is skipped; warning logged; others still returned."""
+    import logging
+
     data = {
         "specs": [
             {
@@ -150,12 +156,12 @@ def test_load_skips_both_path_and_url(tmp_path: Path, capsys: pytest.CaptureFixt
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text(yaml.dump(data), encoding="utf-8")
 
-    specs, _ = load_multi_spec_config(config_file)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        specs, _ = load_multi_spec_config(config_file)
 
     assert len(specs) == 1
     assert specs[0].name == "orders-api"
-    assert "path" in captured.out.lower() or "url" in captured.out.lower()
+    assert "path" in caplog.text.lower() or "url" in caplog.text.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -163,17 +169,19 @@ def test_load_skips_both_path_and_url(tmp_path: Path, capsys: pytest.CaptureFixt
 # ---------------------------------------------------------------------------
 
 
-def test_load_invalid_yaml_returns_empty(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """File with invalid YAML returns ([], {}); warning is printed."""
+def test_load_invalid_yaml_returns_empty(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """File with invalid YAML returns ([], {}); warning is logged."""
+    import logging
+
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text("specs: [\n  - invalid: yaml: content\n  unclosed", encoding="utf-8")
 
-    specs, settings = load_multi_spec_config(config_file)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        specs, settings = load_multi_spec_config(config_file)
 
     assert specs == []
     assert settings == {}
-    assert "warn" in captured.out.lower() or "failed" in captured.out.lower() or "error" in captured.out.lower()
+    assert "warn" in caplog.text.lower() or "failed" in caplog.text.lower() or "error" in caplog.text.lower()
 
 
 def test_load_empty_specs_list(tmp_path: Path) -> None:
@@ -213,18 +221,20 @@ def test_discover_json_only(tmp_path: Path) -> None:
     assert result == json_file
 
 
-def test_discover_both_returns_yaml_with_warning(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """_discover_config_file returns YAML path when both exist; warning printed."""
+def test_discover_both_returns_yaml_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """_discover_config_file returns YAML path when both exist; warning logged."""
+    import logging
+
     yaml_file = tmp_path / "coverage-config.yaml"
     yaml_file.write_text("specs: []", encoding="utf-8")
     json_file = tmp_path / "coverage-config.json"
     json_file.write_text('{"specs": []}', encoding="utf-8")
 
-    result = _discover_config_file(tmp_path)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        result = _discover_config_file(tmp_path)
 
     assert result == yaml_file
-    assert "warn" in captured.out.lower() or "yaml" in captured.out.lower()
+    assert "warn" in caplog.text.lower() or "yaml" in caplog.text.lower()
 
 
 def test_discover_neither_returns_none(tmp_path: Path) -> None:

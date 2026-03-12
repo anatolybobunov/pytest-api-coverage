@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +19,8 @@ from pytest_api_coverage.writers import write_reports
 
 if TYPE_CHECKING:
     from pytest import Config, Item, Parser, Session, TerminalReporter
+
+logger = logging.getLogger("pytest_api_coverage")
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -212,7 +215,7 @@ class _SwaggerLoadMixin:
             self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
         except Exception as e:
             self._swagger_load_error = str(e)
-            print(f"\n[api-coverage] Warning: Failed to load swagger: {e}")
+            logger.warning("Failed to load swagger: %s", e)
 
 
 class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
@@ -297,7 +300,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         # Write reports to files
         written = write_reports(self.report_data, self.settings.output_dir, self.settings.formats)
         if written:
-            print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
+            logger.info("Reports written to: %s", self.settings.output_dir)
 
 
 class CoverageMasterPlugin(_SwaggerLoadMixin):
@@ -398,7 +401,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         # Write reports to files
         written = write_reports(self.report_data, self.settings.output_dir, self.settings.formats)
         if written:
-            print(f"\n[api-coverage] Reports written to: {self.settings.output_dir}")
+            logger.info("Reports written to: %s", self.settings.output_dir)
 
 
 def _route_interaction_for_worker(interaction: dict[str, Any], specs: list[Any]) -> str | None:
