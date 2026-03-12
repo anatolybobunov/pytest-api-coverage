@@ -166,11 +166,16 @@ class TestFromPytestConfig:
                 "coverage_spec_base_url": None,
             },
         )
+        exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
         with pytest.raises(SystemExit):
             CoverageSettings.from_pytest_config(mock_config)
+        exit_mock.assert_called_once_with(
+            "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
+            returncode=1,
+        )
 
 
-def test_spec_path_without_name_exits(tmp_path):
+def test_spec_path_without_name_exits(tmp_path, mocker):
     """Missing --coverage-spec-name with --coverage-spec-path must call pytest.exit() (SystemExit)."""
     import pytest
     from unittest.mock import MagicMock
@@ -195,11 +200,16 @@ def test_spec_path_without_name_exits(tmp_path):
     }.get(key, default)
     config.rootpath = tmp_path
 
+    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
     with pytest.raises(SystemExit):
         CoverageSettings.from_pytest_config(config)
+    exit_mock.assert_called_once_with(
+        "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
+        returncode=1,
+    )
 
 
-def test_spec_path_and_url_mutually_exclusive_exits(tmp_path):
+def test_spec_path_and_url_mutually_exclusive_exits(tmp_path, mocker):
     """Providing both --coverage-spec-path and --coverage-spec-url must call pytest.exit() (SystemExit)."""
     import pytest
     from unittest.mock import MagicMock
@@ -221,8 +231,13 @@ def test_spec_path_and_url_mutually_exclusive_exits(tmp_path):
     }.get(key, default)
     config.rootpath = tmp_path
 
+    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
     with pytest.raises(SystemExit):
         CoverageSettings.from_pytest_config(config)
+    exit_mock.assert_called_once_with(
+        "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+        returncode=1,
+    )
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):
