@@ -153,8 +153,8 @@ class TestSplitByOriginCoverage:
         combined = report["combined_summary"]
         assert combined["total_requests"] == 5  # 2 + 3
         assert combined["origins_count"] == 2
-        # covered_endpoints is max across origins = 3
-        assert combined["covered_endpoints"] == 3
+        # covered_endpoints is the union across origins: {GET /users, POST /users, GET /users/{id}, DELETE /users/{id}} = 4
+        assert combined["covered_endpoints"] == 4
 
     def test_all_endpoints_present_per_origin(
         self,
