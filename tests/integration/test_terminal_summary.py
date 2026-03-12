@@ -153,6 +153,37 @@ def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
     ])
 
 
+def test_split_summary_has_separator(testdir, swagger_file=None):
+    """_print_split_summary must produce a write_sep header like other modes."""
+    from io import StringIO
+    from unittest.mock import MagicMock, call
+    from pytest_api_coverage.plugin import _print_split_summary
+
+    tr = MagicMock()
+    report_data = {
+        "split_by_origin": True,
+        "combined_summary": {
+            "covered_endpoints": 1,
+            "total_endpoints": 2,
+            "coverage_percentage": 50.0,
+            "total_requests": 3,
+            "origins_count": 1,
+        },
+        "origins": {
+            "https://api.example.com": {
+                "summary": {
+                    "covered_endpoints": 1,
+                    "total_endpoints": 2,
+                    "coverage_percentage": 50.0,
+                    "total_requests": 3,
+                },
+            }
+        },
+    }
+    _print_split_summary(tr, report_data)
+    tr.write_sep.assert_called_once_with("=", "API Coverage Summary")
+
+
 def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
     """Multi-spec run with -n 2 (xdist) produces auth-coverage.json and orders-coverage.html."""
     _write_two_spec_config(pytester)

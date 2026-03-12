@@ -485,6 +485,7 @@ def _print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: 
 
 def _print_split_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:
     """Print split-by-origin coverage summary."""
+    terminalreporter.write_sep("=", "API Coverage Summary")
     combined = report_data.get("combined_summary", {})
     origins = report_data.get("origins", {})
 
