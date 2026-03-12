@@ -71,6 +71,15 @@ def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: M
         if reporter is None:
             continue
         summary = reporter.generate_report()["summary"]
+        formats = orchestrator.settings.formats
+        if "html" in formats:
+            ext = "html"
+        elif "json" in formats:
+            ext = "json"
+        elif "csv" in formats:
+            ext = "csv"
+        else:
+            ext = "html"
         rows.append(
             {
                 "name": spec.name,
@@ -78,7 +87,7 @@ def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: M
                 "total": summary["total_endpoints"],
                 "pct": summary["coverage_percentage"],
                 "requests": summary["total_requests"],
-                "filename": f"{spec.name}-coverage.html",
+                "filename": f"{spec.name}-coverage.{ext}",
             }
         )
 
