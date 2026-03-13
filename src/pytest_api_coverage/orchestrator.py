@@ -41,6 +41,8 @@ class MultiSpecOrchestrator:
         for spec in self.settings.specs:
             try:
                 source = spec.swagger_url if spec.swagger_url else spec.swagger_path
+                if source is None:
+                    raise ValueError(f"Spec '{spec.name}' has no swagger_url or swagger_path configured")
                 swagger_spec = SwaggerParser.parse(source)
                 origins = {normalize_origin(u) for u in spec.api_urls}
                 reporter = CoverageReporter(

@@ -13,7 +13,7 @@ Thank you for your interest in contributing to pytest-api-coverage!
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/pytest-api-coverage.git
+git clone https://github.com/anatolybobunov/pytest-api-coverage.git
 cd pytest-api-coverage
 
 # Install dependencies
@@ -40,14 +40,23 @@ uv run ruff check src/ tests/
 uv run ruff format src/ tests/
 
 # Type checking
-uv run mypy src/
+uv run ty check src/
+```
+
+## Pre-commit hooks
+
+Install and run pre-commit hooks:
+
+```bash
+uv run pre-commit install
+uv run pre-commit run --all-files
 ```
 
 ### Code Style
 
 This project uses:
 - [Ruff](https://github.com/astral-sh/ruff) for linting and formatting
-- [mypy](https://mypy.readthedocs.io/) for static type checking
+- [ty](https://docs.astral.sh/ty/) for static type checking
 - Line length: 120 characters
 - Target Python version: 3.11+
 

@@ -268,9 +268,11 @@ class CoverageSettings:
         if isinstance(output_dir, str):
             output_dir = Path(output_dir)
 
-        formats = data.get("formats", {"json", "csv", "html"})
-        if isinstance(formats, list):
-            formats = set(formats)
+        raw_formats = data.get("formats", {"json", "csv", "html"})
+        if isinstance(raw_formats, (list, set)):
+            formats: set[str] = {str(f) for f in raw_formats}
+        else:
+            formats = {"json", "csv", "html"}
 
         specs = [SpecConfig.from_dict(s) for s in data.get("specs", [])]
 

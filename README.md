@@ -1,5 +1,10 @@
 # pytest-api-coverage
 
+[![PyPI version](https://img.shields.io/pypi/v/pytest-api-coverage.svg)](https://pypi.org/project/pytest-api-coverage/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pytest-api-coverage.svg)](https://pypi.org/project/pytest-api-coverage/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/anatolybobunov/pytest-api-coverage/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolybobunov/pytest-api-coverage/actions/workflows/ci.yml)
+
 Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requests during test execution, compares them against Swagger/OpenAPI specifications, and generates detailed coverage reports.
 
 ## Features
@@ -28,19 +33,19 @@ See [docs/installation.md](docs/installation.md) for detailed installation instr
 ## Quick Start
 
 ```bash
-# Basic usage with local spec file
-pytest tests/ --coverage-spec=swagger.json
+# Basic usage with local swagger file
+pytest tests/ --swagger=swagger.json
 
-# Using spec URL
-pytest tests/ --coverage-spec=https://api.example.com/swagger.json
+# Using swagger URL
+pytest tests/ --swagger=https://api.example.com/swagger.json
 
 # With parallel execution
-pytest tests/ -n 4 --coverage-spec=swagger.json
+pytest tests/ -n 4 --swagger=swagger.json
 ```
 
 ## How It Works
 
-1. **Interception**: The plugin monkeypatches `requests.Session.request` and `httpx.Client.request` to capture all HTTP requests made during test execution.
+1. **Interception**: The plugin monkeypatches `requests.Session.request`, `httpx.Client.request`, and `httpx.AsyncClient.request` to capture all HTTP requests made during test execution.
 
 2. **Collection**: Each request is recorded with HTTP method, URL, path, response status code, and test name.
 
@@ -52,14 +57,18 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--coverage-spec` | — | **Required.** Path or URL to OpenAPI spec |
+| `--swagger` | — | Path to swagger.json/yaml file or URL (single-spec mode) |
+| `--coverage-config` | — | Path to YAML/JSON config file for multi-spec mode |
+| `--coverage-spec-name` | — | Name label for a single spec |
+| `--coverage-spec-path` | — | Local file path to an OpenAPI spec (single-spec CLI mode) |
+| `--coverage-spec-url` | — | Remote URL of an OpenAPI spec (single-spec CLI mode) |
+| `--coverage-spec-base-url` | — | Base URL(s) for the spec (repeatable) |
 | `--coverage-output` | `coverage-output` | Output directory for reports |
 | `--coverage-format` | `json,csv,html` | Report formats (comma-separated) |
+| `--coverage-base-url` | — | Filter to single base URL |
+| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated) |
 | `--coverage-strip-prefix` | — | Path prefixes to strip (comma-separated) |
 | `--coverage-split-by-origin` | `false` | Separate coverage per origin |
-| `--coverage-config` | — | Multi-spec config file (YAML/JSON) |
-| `--coverage-spec-name` | — | Spec name (with `--coverage-spec` + `--coverage-spec-api-url`) |
-| `--coverage-spec-api-url` | — | API base URL(s) for the spec (repeatable) |
 
 See [docs/usage.md](docs/usage.md) for detailed usage examples.
 
@@ -81,6 +90,21 @@ uv run mypy src/
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## Build
+
+The package uses [hatchling](https://hatch.pypa.io/) as its build backend.
+
+```bash
+# Build source distribution and wheel (recommended)
+uv build
+
+# Or using python -m build (requires the build package)
+pip install build
+python -m build
+```
+
+Build artifacts (`.tar.gz` and `.whl`) are placed in the `dist/` directory.
 
 ## License
 

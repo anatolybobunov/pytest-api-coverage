@@ -18,5 +18,11 @@ coverage-output/
 # uv
 .venv/
 
+# Build
+dist/
+build/
+*.egg-info/
+
+# AI
 .planning/
 .worktrees/

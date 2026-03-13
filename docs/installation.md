@@ -55,8 +55,23 @@ The plugin automatically installs the following dependencies:
 | pyyaml | >=6.0 | YAML parsing for swagger files |
 | requests | >=2.28.0 | HTTP client interception |
 | httpx | >=0.24.0 | Async HTTP client interception |
-| pandas | >=2.0.0 | Data processing for reports |
 | jinja2 | >=3.0.0 | HTML report templating |
+
+## Build Distribution Packages
+
+To build wheel and sdist packages locally:
+
+```bash
+# Using hatch (matches the build backend)
+pip install hatch
+hatch build
+
+# Or using the standard build frontend
+pip install build
+python -m build
+```
+
+Artifacts are placed in the `dist/` directory.
 
 ## Verify Installation
 

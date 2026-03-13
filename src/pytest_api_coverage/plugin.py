@@ -435,5 +435,3 @@ class CoverageWorkerPlugin(_InterceptionMixin):
     def pytest_unconfigure(self, config: Config) -> None:
         """Clean up adapters when worker finishes."""
         self._teardown_http_interception()
-
-

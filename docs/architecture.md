@@ -43,14 +43,17 @@ src/pytest_api_coverage/
 ├── plugin.py           # Pytest plugin entry point
 ├── collector.py        # Thread-safe request collection
 ├── reporter.py         # Coverage matching and reporting
+├── orchestrator.py     # MultiSpecOrchestrator — multi-spec routing
 ├── models.py           # Data models
 ├── adapters/
 │   ├── __init__.py
+│   ├── base.py               # HttpAdapterProtocol interface
 │   ├── requests_adapter.py   # requests library interception
 │   └── httpx_adapter.py      # httpx library interception
 ├── config/
 │   ├── __init__.py
-│   └── settings.py     # Configuration settings
+│   ├── settings.py     # Configuration settings and SpecConfig
+│   └── multi_spec.py   # Multi-spec config file loader
 ├── schemas/
 │   ├── __init__.py
 │   └── swagger.py      # Swagger/OpenAPI parser
@@ -101,12 +104,31 @@ Both adapters:
 Thread-safe storage for HTTP interactions.
 
 ```python
+@dataclass(frozen=True)
+class HTTPRequest:
+    method: str
+    url: str
+    path: str
+    host: str
+    headers: dict
+    query_params: dict
+    body: bytes | None
+    content_type: str | None
+
+@dataclass(frozen=True)
+class HTTPResponse:
+    status_code: int
+    headers: dict
+    content_type: str | None
+    body_size: int
+
 @dataclass
-class HttpInteraction:
-    request: dict    # method, url, path, headers
-    response: dict   # status_code, headers
-    test_name: str   # pytest node ID
-    timestamp: float
+class HTTPInteraction:
+    request: HTTPRequest
+    response: HTTPResponse
+    timestamp: datetime
+    duration_ms: float
+    test_name: str | None
 ```
 
 Features:
@@ -129,14 +151,27 @@ Swagger/OpenAPI specification parsing.
 ```python
 @dataclass
 class SwaggerEndpoint:
-    method: str  # GET, POST, etc.
-    path: str    # /users/{id}
+    method: str          # GET, POST, etc.
+    path: str            # /users/{id}
+    operation_id: str | None
+    summary: str | None
+    description: str | None
+    tags: list[str]
+    parameters: list[dict]
+    responses: dict
+    consumes: list[str]
+    produces: list[str]
 
 @dataclass
 class SwaggerSpec:
     endpoints: list[SwaggerEndpoint]
-    base_path: str | None
-    source: str  # file path or URL
+    base_path: str       # "" by default
+    source: str          # file path or URL
+    title: str | None
+    version: str | None
+    host: str | None
+    schemes: list[str]
+    server_urls: list[str]
 ```
 
 ### Reporter (`reporter.py`)
@@ -169,6 +204,24 @@ class PathCoverage:
 - `split_by_origin` - separate coverage per origin
 - `include_base_urls` (internal) - allowlist of origins, used by orchestrator via `api_urls`
 
+### Config (`config/`)
+
+**Settings** (`settings.py`):
+- `CoverageSettings` — top-level CLI config
+- `SpecConfig` — per-spec config with `name`, `urls`, `path`, `url` fields
+
+**MultiSpec loader** (`multi_spec.py`):
+- `load_multi_spec_config(path)` — parses YAML/JSON config file
+- `_discover_config_file()` — auto-discovers `coverage-config.yaml` / `coverage-config.json`
+
+### Orchestrator (`orchestrator.py`)
+
+`MultiSpecOrchestrator` handles multi-spec routing:
+- Creates one `CoverageReporter` per `SpecConfig`
+- Routes interactions to the correct reporter by matching origin + path prefix (first-match-wins)
+- Tracks `unmatched_count` for interactions that match no spec
+- Exposes `process_interactions()` and `generate_all_reports()`
+
 ### Writers (`writers/`)
 
 Report output in multiple formats.
@@ -179,7 +232,7 @@ Report output in multiple formats.
 - ISO timestamp
 
 **CsvWriter** (`csv_writer.py`):
-- Flat table format via pandas
+- Flat table format via Python standard library `csv` module
 - Grouped rows (path spans multiple method rows)
 
 **HtmlWriter** (`html_writer.py`):
@@ -235,6 +288,8 @@ For parallel execution:
 ```
 
 - Workers send data via `workeroutput["coverage_data"]`
+  - Single-spec mode: plain list of interactions
+  - Multi-spec mode: `{"per_spec": {spec_name: [interactions]}, "unmatched_count": int}`
 - Master receives via `pytest_testnodedown` hook
 - Final aggregation in `pytest_sessionfinish`
 
@@ -243,8 +298,8 @@ For parallel execution:
 ### Adding New HTTP Client Support
 
 1. Create new adapter in `adapters/`
-2. Implement `install(collector)` and `uninstall()` class methods
-3. Register in `plugin.py` setup/teardown
+2. Implement the `HttpAdapterProtocol` interface (`adapters/base.py`): instance-based `__init__(self, collector)`, `install(self)`, `uninstall(self)`, `is_installed(self)`
+3. Register the class in `ADAPTER_REGISTRY` in `plugin.py`
 
 ### Adding New Report Format
 

@@ -77,7 +77,7 @@ class CoverageReporter:
                 prefixes.add(prefix.rstrip("/"))
 
         # Sort by length descending (longest first)
-        return sorted(prefixes, key=len, reverse=True)
+        return sorted(prefixes, key=lambda p: len(p), reverse=True)
 
     def _create_empty_coverage(self) -> dict[str, EndpointCoverage]:
         """Create empty coverage dict for all swagger endpoints."""

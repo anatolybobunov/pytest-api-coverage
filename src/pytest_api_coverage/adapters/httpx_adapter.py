@@ -60,7 +60,7 @@ class HttpxAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                response = original(self, method, url, **kwargs)  # type: ignore[misc]
+                response = original(self, method, url, **kwargs)
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -76,7 +76,7 @@ class HttpxAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response  # type: ignore[no-any-return]
+                return response
 
             httpx.Client.request = patched_request  # type: ignore[method-assign]
 
@@ -93,7 +93,7 @@ class HttpxAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                response = await original_async(self, method, url, **kwargs)  # type: ignore[misc]
+                response = await original_async(self, method, url, **kwargs)
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -109,7 +109,7 @@ class HttpxAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response  # type: ignore[no-any-return]
+                return response
 
             httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
 

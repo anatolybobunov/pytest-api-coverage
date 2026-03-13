@@ -3,35 +3,39 @@
 ## Quick Start
 
 ```bash
-# Basic usage with local spec file
-pytest tests/ --coverage-spec=swagger.json
+# Basic usage with local swagger file
+pytest tests/ --swagger=swagger.json
 
-# Using spec URL
-pytest tests/ --coverage-spec=https://api.example.com/swagger.json
+# Using swagger URL
+pytest tests/ --swagger=https://api.example.com/swagger.json
 
 # With parallel execution
-pytest tests/ -n 4 --coverage-spec=swagger.json
+pytest tests/ -n 4 --swagger=swagger.json
 ```
 
 ## CLI Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--coverage-spec` | — | **Required.** Path or URL to OpenAPI spec (swagger.json/yaml or remote URL) |
+| `--swagger` | — | Path to swagger.json/yaml file or URL (single-spec mode) |
+| `--coverage-config` | — | Path to YAML/JSON config file for multi-spec mode |
+| `--coverage-spec-name` | — | Name label for a single spec |
+| `--coverage-spec-path` | — | Local file path to an OpenAPI spec (single-spec CLI mode) |
+| `--coverage-spec-url` | — | Remote URL of an OpenAPI spec (single-spec CLI mode) |
+| `--coverage-spec-base-url` | — | Base URL(s) for the spec (repeatable) |
 | `--coverage-output` | `coverage-output` | Output directory for coverage reports |
 | `--coverage-format` | `json,csv,html` | Report formats (comma-separated): `json`, `csv`, `html` |
+| `--coverage-base-url` | — | Filter coverage to single base URL (origin) |
+| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated) |
 | `--coverage-strip-prefix` | — | Additional path prefixes to strip (comma-separated) |
 | `--coverage-split-by-origin` | `false` | Generate separate coverage buckets per origin |
-| `--coverage-config` | — | Path to api-coverage config file (YAML/JSON) for multi-spec |
-| `--coverage-spec-name` | — | Name for the spec (used with `--coverage-spec` and `--coverage-spec-api-url`) |
-| `--coverage-spec-api-url` | — | API base URL(s) for the spec (repeatable) |
 
 ## Examples
 
 ### Basic Coverage
 
 ```bash
-pytest tests/ --coverage-spec=api/swagger.yaml
+pytest tests/ --swagger=api/swagger.yaml
 ```
 
 Generates reports in `coverage-output/` directory.
@@ -39,13 +43,28 @@ Generates reports in `coverage-output/` directory.
 ### Custom Output Directory
 
 ```bash
-pytest tests/ --coverage-spec=swagger.json --coverage-output=reports/api-coverage
+pytest tests/ --swagger=swagger.json --coverage-output=reports/api-coverage
 ```
 
 ### Only JSON Report
 
 ```bash
-pytest tests/ --coverage-spec=swagger.json --coverage-format=json
+pytest tests/ --swagger=swagger.json --coverage-format=json
+```
+
+### Filter by Base URL
+
+When your tests hit multiple APIs but you only want coverage for one:
+
+```bash
+pytest tests/ --swagger=swagger.json --coverage-base-url=https://api.example.com
+```
+
+### Multiple Allowed Origins
+
+```bash
+pytest tests/ --swagger=swagger.json \
+  --coverage-include-base-url=https://api.example.com,https://staging.example.com
 ```
 
 ### Strip Path Prefixes
@@ -53,7 +72,7 @@ pytest tests/ --coverage-spec=swagger.json --coverage-format=json
 If your API has versioned paths (`/v1/users`) but swagger defines them without prefix (`/users`):
 
 ```bash
-pytest tests/ --coverage-spec=swagger.json --coverage-strip-prefix=/v1,/api/v2
+pytest tests/ --swagger=swagger.json --coverage-strip-prefix=/v1,/api/v2
 ```
 
 ### Split Coverage by Origin
@@ -61,63 +80,16 @@ pytest tests/ --coverage-spec=swagger.json --coverage-strip-prefix=/v1,/api/v2
 Generate separate coverage statistics for each API origin:
 
 ```bash
-pytest tests/ --coverage-spec=swagger.json --coverage-split-by-origin
+pytest tests/ --swagger=swagger.json --coverage-split-by-origin
 ```
 
 ### Parallel Execution with pytest-xdist
 
 ```bash
-pytest tests/ -n 4 --coverage-spec=swagger.json
+pytest tests/ -n 4 --swagger=swagger.json
 ```
 
 Coverage data is automatically collected from all workers and aggregated.
-
-### Single-spec CLI Mode (with origin filtering)
-
-```bash
-pytest tests/ \
-  --coverage-spec=swagger.json \
-  --coverage-spec-name=myapi \
-  --coverage-spec-api-url=https://api.example.com
-```
-
-### Multi-spec via Config File
-
-```bash
-pytest tests/ --coverage-config=coverage-config.yaml
-```
-
-See [Multi-spec Configuration](#multi-spec-configuration) below.
-
-## Multi-spec Configuration
-
-Create a `coverage-config.yaml` in your project root:
-
-```yaml
-output_dir: reports/api-coverage
-formats: [json, html]
-
-specs:
-  - name: auth
-    swagger_path: ./specs/auth.yaml
-    api_urls:
-      - https://auth.example.com
-
-  - name: orders
-    swagger_url: https://orders.example.com/openapi.json
-    api_urls:
-      - https://orders.example.com
-      - https://staging-orders.example.com
-```
-
-### Config File Keys
-
-| Key | Description |
-|-----|-------------|
-| `name` | Spec identifier (used as file prefix) |
-| `swagger_path` | Local path to OpenAPI spec file |
-| `swagger_url` | Remote URL of OpenAPI spec |
-| `api_urls` | List of API base URLs to match requests against |
 
 ## Report Formats
 
@@ -189,14 +161,7 @@ After test execution, a summary is printed:
 
 ```
 ========================= API Coverage Summary =========================
-Endpoints: 15/20 covered (75.0%)
-Total HTTP requests: 150
-
-Uncovered endpoints (5):
-  - DELETE /users/{id}
-  - PATCH /users/{id}
-  - POST /admin/reset
-  ...
+swagger   15/20 endpoints   75.0%   150 req   coverage.html
 ```
 
 ## Configuration via pytest.ini
@@ -205,12 +170,12 @@ You can also configure options in `pytest.ini`:
 
 ```ini
 [pytest]
-addopts = --coverage-spec=api/swagger.json --coverage-output=reports
+addopts = --swagger=api/swagger.json --coverage-output=reports
 ```
 
 Or in `pyproject.toml`:
 
 ```toml
 [tool.pytest.ini_options]
-addopts = "--coverage-spec=api/swagger.json --coverage-output=reports"
+addopts = "--swagger=api/swagger.json --coverage-output=reports"
 ```

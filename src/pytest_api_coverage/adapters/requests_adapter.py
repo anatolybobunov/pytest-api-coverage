@@ -46,7 +46,7 @@ class RequestsAdapter:
                 start_time = time.perf_counter()
                 timestamp = datetime.now(UTC)
 
-                response = original(self, method, url, **kwargs)  # type: ignore[misc]
+                response = original(self, method, url, **kwargs)
 
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -63,7 +63,7 @@ class RequestsAdapter:
                 except Exception:
                     pass  # Never let coverage tracking break tests
 
-                return response  # type: ignore[no-any-return]
+                return response
 
             requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
             self._installed = True
