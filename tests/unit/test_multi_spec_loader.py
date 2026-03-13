@@ -23,8 +23,12 @@ def two_valid_specs_yaml(tmp_path: Path) -> Path:
     """YAML config file with two valid spec entries."""
     data = {
         "specs": [
-            {"name": "users-api", "urls": ["http://localhost:8000"], "path": "users.yaml"},
-            {"name": "orders-api", "urls": ["http://localhost:8001"], "url": "http://specs.example.com/orders.yaml"},
+            {"name": "users-api", "api_urls": ["http://localhost:8000"], "swagger_path": "users.yaml"},
+            {
+                "name": "orders-api",
+                "api_urls": ["http://localhost:8001"],
+                "swagger_url": "http://specs.example.com/orders.yaml",
+            },
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -37,8 +41,12 @@ def two_valid_specs_json(tmp_path: Path) -> Path:
     """JSON config file with two valid spec entries."""
     data = {
         "specs": [
-            {"name": "users-api", "urls": ["http://localhost:8000"], "path": "users.yaml"},
-            {"name": "orders-api", "urls": ["http://localhost:8001"], "url": "http://specs.example.com/orders.yaml"},
+            {"name": "users-api", "api_urls": ["http://localhost:8000"], "swagger_path": "users.yaml"},
+            {
+                "name": "orders-api",
+                "api_urls": ["http://localhost:8001"],
+                "swagger_url": "http://specs.example.com/orders.yaml",
+            },
         ]
     }
     config_file = tmp_path / "coverage-config.json"
@@ -53,7 +61,7 @@ def yaml_with_top_level_settings(tmp_path: Path) -> Path:
         "output_dir": "reports/api",
         "formats": ["json", "html"],
         "specs": [
-            {"name": "users-api", "urls": ["http://localhost:8000"]},
+            {"name": "users-api", "api_urls": ["http://localhost:8000"]},
         ],
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -102,8 +110,8 @@ def test_load_skips_missing_name(tmp_path: Path, caplog: pytest.LogCaptureFixtur
 
     data = {
         "specs": [
-            {"urls": ["http://localhost:8000"]},  # missing name
-            {"name": "orders-api", "urls": ["http://localhost:8001"]},
+            {"api_urls": ["http://localhost:8000"]},  # missing name
+            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -118,13 +126,13 @@ def test_load_skips_missing_name(tmp_path: Path, caplog: pytest.LogCaptureFixtur
 
 
 def test_load_skips_empty_urls(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Entry with urls=[] is skipped; warning logged; others still returned."""
+    """Entry with api_urls=[] is skipped; warning logged; others still returned."""
     import logging
 
     data = {
         "specs": [
-            {"name": "users-api", "urls": []},  # empty urls
-            {"name": "orders-api", "urls": ["http://localhost:8001"]},
+            {"name": "users-api", "api_urls": []},  # empty api_urls
+            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -139,18 +147,18 @@ def test_load_skips_empty_urls(tmp_path: Path, caplog: pytest.LogCaptureFixture)
 
 
 def test_load_skips_both_path_and_url(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Entry with both 'path' and 'url' is skipped; warning logged; others still returned."""
+    """Entry with both 'swagger_path' and 'swagger_url' is skipped; warning logged; others still returned."""
     import logging
 
     data = {
         "specs": [
             {
                 "name": "users-api",
-                "urls": ["http://localhost:8000"],
-                "path": "spec.yaml",
-                "url": "http://example.com/spec.yaml",
+                "api_urls": ["http://localhost:8000"],
+                "swagger_path": "spec.yaml",
+                "swagger_url": "http://example.com/spec.yaml",
             },
-            {"name": "orders-api", "urls": ["http://localhost:8001"]},
+            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"

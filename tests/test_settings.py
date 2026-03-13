@@ -14,41 +14,39 @@ class TestCoverageSettingsInit:
         """Test default settings values."""
         settings = CoverageSettings()
 
-        assert settings.swagger is None
+        assert settings.spec is None
         assert settings.output_dir == Path("coverage-output")
         assert settings.formats == {"json", "csv", "html"}
-        assert settings.base_url is None
-        assert settings.include_base_urls == set()
         assert settings.strip_prefixes == []
         assert settings.split_by_origin is False
 
-    def test_swagger_file_path_valid(self, tmp_path: Path):
-        """Test swagger validation with valid file path."""
-        swagger_file = tmp_path / "swagger.json"
-        swagger_file.write_text('{"swagger": "2.0"}')
+    def test_spec_file_path_valid(self, tmp_path: Path):
+        """Test spec validation with valid file path."""
+        spec_file = tmp_path / "swagger.json"
+        spec_file.write_text('{"swagger": "2.0"}')
 
-        settings = CoverageSettings(swagger=swagger_file)
+        settings = CoverageSettings(spec=spec_file)
 
-        assert settings.swagger == swagger_file
+        assert settings.spec == spec_file
 
-    def test_swagger_file_path_not_found(self):
-        """Test swagger validation with non-existent file."""
+    def test_spec_file_path_not_found(self):
+        """Test spec validation with non-existent file."""
         with pytest.raises(ValueError, match="Swagger file not found"):
-            CoverageSettings(swagger="/nonexistent/swagger.json")
+            CoverageSettings(spec="/nonexistent/swagger.json")
 
-    def test_swagger_url_passthrough(self):
+    def test_spec_url_passthrough(self):
         """Test that URLs are passed through without validation."""
         url = "https://api.example.com/swagger.json"
-        settings = CoverageSettings(swagger=url)
+        settings = CoverageSettings(spec=url)
 
-        assert settings.swagger == url
+        assert settings.spec == url
 
-    def test_swagger_http_url_passthrough(self):
+    def test_spec_http_url_passthrough(self):
         """Test that HTTP URLs are passed through without validation."""
         url = "http://localhost:8080/swagger.json"
-        settings = CoverageSettings(swagger=url)
+        settings = CoverageSettings(spec=url)
 
-        assert settings.swagger == url
+        assert settings.spec == url
 
     def test_formats_from_string(self):
         """Test formats parsing from comma-separated string."""
@@ -80,24 +78,6 @@ class TestCoverageSettingsInit:
 
         assert settings.output_dir == Path("my-output")
 
-    def test_include_base_urls_from_string(self):
-        """Test include_base_urls parsing from comma-separated string."""
-        settings = CoverageSettings(include_base_urls="https://api.com, https://staging.com")
-
-        assert settings.include_base_urls == {"https://api.com", "https://staging.com"}
-
-    def test_include_base_urls_from_list(self):
-        """Test include_base_urls from list input."""
-        settings = CoverageSettings(include_base_urls=["https://api.com", "https://staging.com"])
-
-        assert settings.include_base_urls == {"https://api.com", "https://staging.com"}
-
-    def test_include_base_urls_empty_string(self):
-        """Test include_base_urls with empty string."""
-        settings = CoverageSettings(include_base_urls="")
-
-        assert settings.include_base_urls == set()
-
     def test_strip_prefixes_from_string(self):
         """Test strip_prefixes parsing from comma-separated string."""
         settings = CoverageSettings(strip_prefixes="/api/v1, /api/v2")
@@ -122,51 +102,47 @@ class TestCoverageSettingsFromDict:
 
     def test_from_dict_full(self, tmp_path: Path):
         """Test full deserialization from dict."""
-        swagger_file = tmp_path / "swagger.json"
-        swagger_file.write_text("{}")
+        spec_file = tmp_path / "swagger.json"
+        spec_file.write_text("{}")
 
         data = {
-            "swagger": str(swagger_file),
+            "spec": str(spec_file),
             "output_dir": "output",
             "formats": ["json"],
-            "base_url": "https://api.com",
-            "include_base_urls": ["https://a.com", "https://b.com"],
             "strip_prefixes": ["/v1"],
             "split_by_origin": True,
         }
 
         settings = CoverageSettings.from_dict(data)
 
-        assert settings.swagger == swagger_file
+        assert settings.spec == spec_file
         assert settings.output_dir == Path("output")
         assert settings.formats == {"json"}
-        assert settings.base_url == "https://api.com"
-        assert settings.include_base_urls == {"https://a.com", "https://b.com"}
         assert settings.strip_prefixes == ["/v1"]
         assert settings.split_by_origin is True
 
-    def test_from_dict_url_swagger(self):
-        """Test from_dict with URL swagger (no file validation)."""
-        data = {"swagger": "https://api.com/swagger.json"}
+    def test_from_dict_url_spec(self):
+        """Test from_dict with URL spec (no file validation)."""
+        data = {"spec": "https://api.com/swagger.json"}
 
         settings = CoverageSettings.from_dict(data)
 
-        assert settings.swagger == "https://api.com/swagger.json"
+        assert settings.spec == "https://api.com/swagger.json"
 
     def test_from_dict_defaults(self):
         """Test from_dict with empty dict uses defaults."""
         settings = CoverageSettings.from_dict({})
 
-        assert settings.swagger is None
+        assert settings.spec is None
         assert settings.formats == {"json", "csv", "html"}
 
-    def test_from_dict_none_swagger(self):
-        """Test from_dict with None swagger value."""
-        data = {"swagger": None}
+    def test_from_dict_none_spec(self):
+        """Test from_dict with None spec value."""
+        data = {"spec": None}
 
         settings = CoverageSettings.from_dict(data)
 
-        assert settings.swagger is None
+        assert settings.spec is None
 
 
 class TestCoverageSettingsToDict:
@@ -174,78 +150,72 @@ class TestCoverageSettingsToDict:
 
     def test_to_dict_roundtrip(self, tmp_path: Path):
         """Test serialization/deserialization roundtrip."""
-        swagger_file = tmp_path / "swagger.json"
-        swagger_file.write_text("{}")
+        spec_file = tmp_path / "swagger.json"
+        spec_file.write_text("{}")
 
         original = CoverageSettings(
-            swagger=swagger_file,
+            spec=spec_file,
             formats={"json", "html"},
-            base_url="https://api.com",
             split_by_origin=True,
         )
 
         data = original.to_dict()
         restored = CoverageSettings.from_dict(data)
 
-        assert restored.swagger == original.swagger
+        assert restored.spec == original.spec
         assert restored.formats == original.formats
-        assert restored.base_url == original.base_url
         assert restored.split_by_origin == original.split_by_origin
 
     def test_to_dict_structure(self, tmp_path: Path):
         """Test to_dict returns expected structure."""
-        swagger_file = tmp_path / "swagger.json"
-        swagger_file.write_text("{}")
+        spec_file = tmp_path / "swagger.json"
+        spec_file.write_text("{}")
 
         settings = CoverageSettings(
-            swagger=swagger_file,
+            spec=spec_file,
             output_dir=Path("output"),
             formats={"json"},
-            base_url="https://api.com",
-            include_base_urls={"https://a.com"},
             strip_prefixes=["/v1"],
             split_by_origin=True,
         )
 
         data = settings.to_dict()
 
-        assert data["swagger"] == str(swagger_file)
+        assert data["spec"] == str(spec_file)
         assert data["output_dir"] == "output"
         assert data["formats"] == ["json"]
-        assert data["base_url"] == "https://api.com"
-        assert data["include_base_urls"] == ["https://a.com"]
         assert data["strip_prefixes"] == ["/v1"]
         assert data["split_by_origin"] is True
 
-    def test_to_dict_none_swagger(self):
-        """Test to_dict with None swagger."""
+    def test_to_dict_none_spec(self):
+        """Test to_dict with None spec."""
         settings = CoverageSettings()
 
         data = settings.to_dict()
 
-        assert data["swagger"] is None
+        assert data["spec"] is None
 
 
 class TestCoverageSettingsIsEnabled:
     """Tests for is_enabled method."""
 
-    def test_is_enabled_with_swagger_file(self, tmp_path: Path):
-        """Test is_enabled returns True when swagger file is set."""
-        swagger_file = tmp_path / "swagger.json"
-        swagger_file.write_text("{}")
+    def test_is_enabled_with_spec_file(self, tmp_path: Path):
+        """Test is_enabled returns True when spec file is set."""
+        spec_file = tmp_path / "swagger.json"
+        spec_file.write_text("{}")
 
-        settings = CoverageSettings(swagger=swagger_file)
-
-        assert settings.is_enabled() is True
-
-    def test_is_enabled_with_swagger_url(self):
-        """Test is_enabled returns True when swagger URL is set."""
-        settings = CoverageSettings(swagger="https://api.com/swagger.json")
+        settings = CoverageSettings(spec=spec_file)
 
         assert settings.is_enabled() is True
 
-    def test_is_enabled_without_swagger(self):
-        """Test is_enabled returns False when swagger is None."""
+    def test_is_enabled_with_spec_url(self):
+        """Test is_enabled returns True when spec URL is set."""
+        settings = CoverageSettings(spec="https://api.com/swagger.json")
+
+        assert settings.is_enabled() is True
+
+    def test_is_enabled_without_spec(self):
+        """Test is_enabled returns False when spec is None."""
         settings = CoverageSettings()
 
         assert settings.is_enabled() is False
@@ -259,45 +229,47 @@ class TestSpecConfigRoundTrip:
 
         from pytest_api_coverage.config.settings import SpecConfig
 
-        original = SpecConfig(name="auth", urls=["https://auth.example.com"], path=Path("/tmp/auth.yaml"))
+        original = SpecConfig(
+            name="auth", api_urls=["https://auth.example.com"], swagger_path=Path("/tmp/auth.yaml")
+        )
         data = original.to_dict()
-        # Path must be str in dict (JSON-safe)
-        assert isinstance(data["path"], str)
+        # swagger_path must be str in dict (JSON-safe)
+        assert isinstance(data["swagger_path"], str)
         restored = SpecConfig.from_dict(data)
         assert restored.name == "auth"
-        assert restored.urls == ["https://auth.example.com"]
-        assert restored.path == Path("/tmp/auth.yaml")
-        assert restored.url is None
+        assert restored.api_urls == ["https://auth.example.com"]
+        assert restored.swagger_path == Path("/tmp/auth.yaml")
+        assert restored.swagger_url is None
 
     def test_round_trip_with_url(self):
         from pytest_api_coverage.config.settings import SpecConfig
 
         original = SpecConfig(
             name="orders",
-            urls=["https://orders.example.com/api"],
-            url="https://remote.example.com/spec.yaml",
+            api_urls=["https://orders.example.com/api"],
+            swagger_url="https://remote.example.com/spec.yaml",
         )
         data = original.to_dict()
         restored = SpecConfig.from_dict(data)
         assert restored.name == "orders"
-        assert restored.url == "https://remote.example.com/spec.yaml"
-        assert restored.path is None
+        assert restored.swagger_url == "https://remote.example.com/spec.yaml"
+        assert restored.swagger_path is None
 
     def test_round_trip_multi_url(self):
         from pytest_api_coverage.config.settings import SpecConfig
 
-        original = SpecConfig(name="svc", urls=["https://a.example.com", "https://b.example.com"])
+        original = SpecConfig(name="svc", api_urls=["https://a.example.com", "https://b.example.com"])
         restored = SpecConfig.from_dict(original.to_dict())
-        assert restored.urls == ["https://a.example.com", "https://b.example.com"]
+        assert restored.api_urls == ["https://a.example.com", "https://b.example.com"]
 
-    def test_path_none_round_trips(self):
+    def test_swagger_path_none_round_trips(self):
         from pytest_api_coverage.config.settings import SpecConfig
 
-        original = SpecConfig(name="svc", urls=["https://svc.example.com"])
+        original = SpecConfig(name="svc", api_urls=["https://svc.example.com"])
         data = original.to_dict()
-        assert data["path"] is None
+        assert data["swagger_path"] is None
         restored = SpecConfig.from_dict(data)
-        assert restored.path is None
+        assert restored.swagger_path is None
 
 
 class TestCoverageSettingsFromPytestConfig:
@@ -307,65 +279,54 @@ class TestCoverageSettingsFromPytestConfig:
         """Test creation from pytest config object."""
         mock_config = mocker.Mock()
         mock_config.getoption.side_effect = lambda key, default=None: {
-            "swagger": "https://api.com/swagger.json",
+            "coverage_spec": "https://api.com/swagger.json",
             "coverage_output": "output",
             "coverage_format": "json,html",
-            "coverage_base_url": "https://api.com",
-            "coverage_include_base_url": None,
             "coverage_strip_prefix": None,
             "coverage_split_by_origin": False,
         }.get(key, default)
 
         settings = CoverageSettings.from_pytest_config(mock_config)
 
-        assert settings.swagger == "https://api.com/swagger.json"
+        assert settings.spec == "https://api.com/swagger.json"
         assert settings.output_dir == Path("output")
         assert settings.formats == {"json", "html"}
-        assert settings.base_url == "https://api.com"
 
     def test_from_pytest_config_defaults(self, mocker):
         """Test from_pytest_config with default values."""
         mock_config = mocker.Mock()
         mock_config.getoption.side_effect = lambda key, default=None: {
-            "swagger": None,
+            "coverage_spec": None,
             "coverage_output": "coverage-output",
             "coverage_format": "json,csv,html",
-            "coverage_base_url": None,
-            "coverage_include_base_url": None,
             "coverage_strip_prefix": None,
             "coverage_split_by_origin": False,
             "coverage_config": None,
             "coverage_spec_name": None,
-            "coverage_spec_path": None,
-            "coverage_spec_url": None,
-            "coverage_spec_base_url": None,
+            "coverage_spec_api_url": None,
         }.get(key, default)
         # rootpath must be a real Path so _discover_config_file can use / operator
         mock_config.rootpath = Path("/tmp")
 
         settings = CoverageSettings.from_pytest_config(mock_config)
 
-        assert settings.swagger is None
+        assert settings.spec is None
         assert settings.output_dir == Path("coverage-output")
         assert settings.formats == {"json", "csv", "html"}
         assert settings.is_enabled() is False
 
-    def test_from_pytest_config_with_filters(self, mocker):
-        """Test from_pytest_config with filtering options."""
+    def test_from_pytest_config_with_strip_prefix(self, mocker):
+        """Test from_pytest_config with strip prefix option."""
         mock_config = mocker.Mock()
         mock_config.getoption.side_effect = lambda key, default=None: {
-            "swagger": "https://api.com/spec.json",
+            "coverage_spec": "https://api.com/spec.json",
             "coverage_output": "coverage-output",
             "coverage_format": "json",
-            "coverage_base_url": "https://api.com",
-            "coverage_include_base_url": "https://a.com,https://b.com",
             "coverage_strip_prefix": "/api/v1,/api/v2",
             "coverage_split_by_origin": True,
         }.get(key, default)
 
         settings = CoverageSettings.from_pytest_config(mock_config)
 
-        assert settings.base_url == "https://api.com"
-        assert settings.include_base_urls == {"https://a.com", "https://b.com"}
         assert settings.strip_prefixes == ["/api/v1", "/api/v2"]
         assert settings.split_by_origin is True

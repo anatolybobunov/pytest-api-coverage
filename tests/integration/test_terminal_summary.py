@@ -58,12 +58,12 @@ def _write_two_spec_config(pytester: pytest.Pytester) -> None:
     (pytester.path / "coverage-config.yaml").write_text(
         "specs:\n"
         "  - name: auth\n"
-        "    path: auth.yaml\n"
-        "    urls:\n"
+        "    swagger_path: auth.yaml\n"
+        "    api_urls:\n"
         "      - https://auth.example.com\n"
         "  - name: orders\n"
-        "    path: orders.yaml\n"
-        "    urls:\n"
+        "    swagger_path: orders.yaml\n"
+        "    api_urls:\n"
         "      - https://orders.example.com\n"
     )
 
@@ -114,8 +114,8 @@ def test_multi_spec_totals_row(pytester: pytest.Pytester) -> None:
     )
 
 
-def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
-    """--swagger mode: produces coverage.json/html/csv (no prefix) and terminal shows API Coverage Summary."""
+def test_coverage_spec_compat(pytester: pytest.Pytester) -> None:
+    """--coverage-spec mode: produces coverage.json/html/csv (no prefix) and terminal shows API Coverage Summary."""
     spec = pytester.path / "spec.yaml"
     spec.write_text(MINIMAL_SPEC)
 
@@ -137,7 +137,7 @@ def test_swagger_backward_compat(pytester: pytest.Pytester) -> None:
     """)
 
     result = pytester.runpytest(
-        "--swagger=spec.yaml",
+        "--coverage-spec=spec.yaml",
         "--coverage-output=out",
     )
     result.assert_outcomes(passed=1)
@@ -293,7 +293,7 @@ def test_terminal_summary_omits_html_when_not_requested():
         "endpoints": [],
     }
     settings = CoverageSettings(
-        swagger=None,
+        spec=None,
         output_dir=Path("my-reports"),
         formats={"json", "csv"},  # no html
     )
@@ -325,7 +325,7 @@ def test_terminal_summary_shows_correct_output_dir():
         "endpoints": [],
     }
     settings = CoverageSettings(
-        swagger=None,
+        spec=None,
         output_dir=Path("custom-reports"),
         formats={"html"},
     )

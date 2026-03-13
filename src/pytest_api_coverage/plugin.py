@@ -27,11 +27,11 @@ def pytest_addoption(parser: Parser) -> None:
     """Add CLI options for API coverage."""
     group = parser.getgroup("api-coverage")
     group.addoption(
-        "--swagger",
-        dest="swagger",
+        "--coverage-spec",
+        dest="coverage_spec",
         type=str,
         default=None,
-        help="Path to swagger.json/yaml file or URL to swagger spec",
+        help="Path or URL to OpenAPI spec (swagger.json/yaml or remote URL)",
     )
     group.addoption(
         "--coverage-output",
@@ -46,20 +46,6 @@ def pytest_addoption(parser: Parser) -> None:
         type=str,
         default="json,csv,html",
         help="Report formats (comma-separated): json,csv,html",
-    )
-    group.addoption(
-        "--coverage-base-url",
-        dest="coverage_base_url",
-        type=str,
-        default=None,
-        help="Filter coverage to single base URL (origin). Example: https://api.example.com",
-    )
-    group.addoption(
-        "--coverage-include-base-url",
-        dest="coverage_include_base_url",
-        type=str,
-        default=None,
-        help="Allowlist of base URLs (comma-separated). Example: https://api.com,https://proxy.com",
     )
     group.addoption(
         "--coverage-strip-prefix",
@@ -87,28 +73,14 @@ def pytest_addoption(parser: Parser) -> None:
         dest="coverage_spec_name",
         type=str,
         default=None,
-        help="Name for a single spec (used with --coverage-spec-path or --coverage-spec-url)",
+        help="Name for the spec (used with --coverage-spec and --coverage-spec-api-url)",
     )
     group.addoption(
-        "--coverage-spec-path",
-        dest="coverage_spec_path",
-        type=str,
-        default=None,
-        help="Local file path to an OpenAPI spec for single-spec CLI mode",
-    )
-    group.addoption(
-        "--coverage-spec-url",
-        dest="coverage_spec_url",
-        type=str,
-        default=None,
-        help="Remote URL of an OpenAPI spec for single-spec CLI mode",
-    )
-    group.addoption(
-        "--coverage-spec-base-url",
-        dest="coverage_spec_base_url",
+        "--coverage-spec-api-url",
+        dest="coverage_spec_api_url",
         action="append",
         default=None,
-        help="Base URL(s) for the spec (repeatable). Example: --coverage-spec-base-url https://api.example.com",
+        help="API base URL(s) for the spec (repeatable). Example: --coverage-spec-api-url https://api.example.com",
     )
 
 
@@ -142,8 +114,8 @@ def _build_activity_line(settings: CoverageSettings) -> str | None:
     if settings.specs:
         spec_names = ", ".join(s.name for s in settings.specs)
         return f"[api-coverage] Active | mode: multi-spec | specs: {spec_names} | output: {settings.output_dir}/"
-    if settings.swagger:
-        stem = Path(str(settings.swagger)).stem
+    if settings.spec:
+        stem = Path(str(settings.spec)).stem
         return f"[api-coverage] Active | mode: single-spec | spec: {stem} | output: {settings.output_dir}/"
     return None
 
@@ -209,10 +181,10 @@ class _SwaggerLoadMixin:
 
     def _load_swagger(self) -> None:
         """Load and parse swagger specification."""
-        if not self.settings.swagger:
+        if not self.settings.spec:
             return
         try:
-            self.swagger_spec = SwaggerParser.parse(self.settings.swagger)
+            self.swagger_spec = SwaggerParser.parse(self.settings.spec)
         except Exception as e:
             self._swagger_load_error = str(e)
             logger.warning("Failed to load swagger: %s", e)
@@ -289,8 +261,6 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
 
         reporter = CoverageReporter(
             self.swagger_spec,
-            base_url=self.settings.base_url,
-            include_base_urls=self.settings.include_base_urls or None,
             strip_prefixes=self.settings.strip_prefixes or None,
             split_by_origin=self.settings.split_by_origin,
         )
@@ -390,8 +360,6 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
 
         reporter = CoverageReporter(
             self.swagger_spec,
-            base_url=self.settings.base_url,
-            include_base_urls=self.settings.include_base_urls or None,
             strip_prefixes=self.settings.strip_prefixes or None,
             split_by_origin=self.settings.split_by_origin,
         )
@@ -417,7 +385,7 @@ def _route_interaction_for_worker(interaction: dict[str, Any], specs: list[Any])
     req_origin = normalize_origin(url)
 
     for spec in specs:
-        for spec_url in spec.urls:
+        for spec_url in spec.api_urls:
             spec_origin = normalize_origin(spec_url)
             if req_origin != spec_origin:
                 continue

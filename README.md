@@ -28,14 +28,14 @@ See [docs/installation.md](docs/installation.md) for detailed installation instr
 ## Quick Start
 
 ```bash
-# Basic usage with local swagger file
-pytest tests/ --swagger=swagger.json
+# Basic usage with local spec file
+pytest tests/ --coverage-spec=swagger.json
 
-# Using swagger URL
-pytest tests/ --swagger=https://api.example.com/swagger.json
+# Using spec URL
+pytest tests/ --coverage-spec=https://api.example.com/swagger.json
 
 # With parallel execution
-pytest tests/ -n 4 --swagger=swagger.json
+pytest tests/ -n 4 --coverage-spec=swagger.json
 ```
 
 ## How It Works
@@ -52,13 +52,14 @@ pytest tests/ -n 4 --swagger=swagger.json
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--swagger` | — | **Required.** Path to swagger.json/yaml file or URL |
+| `--coverage-spec` | — | **Required.** Path or URL to OpenAPI spec |
 | `--coverage-output` | `coverage-output` | Output directory for reports |
 | `--coverage-format` | `json,csv,html` | Report formats (comma-separated) |
-| `--coverage-base-url` | — | Filter to single base URL |
-| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated) |
 | `--coverage-strip-prefix` | — | Path prefixes to strip (comma-separated) |
 | `--coverage-split-by-origin` | `false` | Separate coverage per origin |
+| `--coverage-config` | — | Multi-spec config file (YAML/JSON) |
+| `--coverage-spec-name` | — | Spec name (with `--coverage-spec` + `--coverage-spec-api-url`) |
+| `--coverage-spec-api-url` | — | API base URL(s) for the spec (repeatable) |
 
 See [docs/usage.md](docs/usage.md) for detailed usage examples.
 

@@ -40,9 +40,9 @@ class MultiSpecOrchestrator:
         """Load SwaggerSpec for each SpecConfig. Warn + skip on failure. Never raise."""
         for spec in self.settings.specs:
             try:
-                source = spec.url if spec.url else spec.path
+                source = spec.swagger_url if spec.swagger_url else spec.swagger_path
                 swagger_spec = SwaggerParser.parse(source)
-                origins = {normalize_origin(u) for u in spec.urls}
+                origins = {normalize_origin(u) for u in spec.api_urls}
                 reporter = CoverageReporter(
                     swagger_spec,
                     include_base_urls=origins,
@@ -56,7 +56,7 @@ class MultiSpecOrchestrator:
         """Check for URL overlap across specs and warn. Uses exact URL string comparison."""
         seen: dict[str, str] = {}
         for spec in self._specs:
-            for url in spec.urls:
+            for url in spec.api_urls:
                 if url in seen:
                     logger.warning(
                         "URL '%s' appears in both '%s' and '%s' specs. First-match-wins applies.",
@@ -111,7 +111,7 @@ class MultiSpecOrchestrator:
         """
         url = interaction.get("request", {}).get("url", "")
         for spec in self._specs:
-            for spec_url in spec.urls:
+            for spec_url in spec.api_urls:
                 if self._matches_spec(url, spec_url):
                     return spec.name
         return None

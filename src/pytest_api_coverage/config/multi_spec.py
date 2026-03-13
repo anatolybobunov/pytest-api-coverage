@@ -52,16 +52,16 @@ def _parse_spec_entry(entry: dict[str, Any]) -> SpecConfig | None:
     if not name:
         logger.warning("Spec entry missing 'name', skipping")
         return None
-    urls = entry.get("urls")
-    if not urls:
-        logger.warning("Spec '%s' has empty or missing 'urls', skipping", name)
+    api_urls = entry.get("api_urls")
+    if not api_urls:
+        logger.warning("Spec '%s' has empty or missing 'api_urls', skipping", name)
         return None
-    path = entry.get("path")
-    url = entry.get("url")
-    if path and url:
-        logger.warning("Spec '%s' has both 'path' and 'url', skipping", name)
+    swagger_path = entry.get("swagger_path")
+    swagger_url = entry.get("swagger_url")
+    if swagger_path and swagger_url:
+        logger.warning("Spec '%s' has both 'swagger_path' and 'swagger_url', skipping", name)
         return None
-    return SpecConfig(name=name, urls=urls, path=path, url=url)
+    return SpecConfig(name=name, api_urls=api_urls, swagger_path=swagger_path, swagger_url=swagger_url)
 
 
 def _discover_config_file(rootpath: Path) -> Path | None:

@@ -23,24 +23,24 @@ class SpecConfig:
     """
 
     name: str
-    urls: list[str]
-    path: str | Path | None = None
-    url: str | None = None
+    api_urls: list[str]
+    swagger_path: str | Path | None = None
+    swagger_url: str | None = None
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
         if not self.name:
             raise ValueError("SpecConfig 'name' must be a non-empty string")
 
-        if self.path is not None and self.url is not None:
-            raise ValueError("SpecConfig 'path' and 'url' are mutually exclusive; provide only one")
+        if self.swagger_path is not None and self.swagger_url is not None:
+            raise ValueError("SpecConfig 'swagger_path' and 'swagger_url' are mutually exclusive; provide only one")
 
-        if not self.urls:
-            raise ValueError("SpecConfig 'urls' must be a non-empty list")
+        if not self.api_urls:
+            raise ValueError("SpecConfig 'api_urls' must be a non-empty list")
 
         # Normalise path to Path object
-        if self.path is not None and isinstance(self.path, str):
-            self.path = Path(self.path)
+        if self.swagger_path is not None and isinstance(self.swagger_path, str):
+            self.swagger_path = Path(self.swagger_path)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SpecConfig:
@@ -48,7 +48,7 @@ class SpecConfig:
 
         Args:
             data: Dictionary with spec configuration values.
-                  Must contain 'name' and 'urls' keys.
+                  Must contain 'name' and 'api_urls' keys.
 
         Returns:
             SpecConfig instance
@@ -56,13 +56,13 @@ class SpecConfig:
         Raises:
             ValueError: If required fields are missing or invalid
         """
-        if "urls" not in data:
-            raise ValueError("SpecConfig dict must contain 'urls' key")
+        if "api_urls" not in data:
+            raise ValueError("SpecConfig dict must contain 'api_urls' key")
         return cls(
             name=data["name"],
-            urls=data["urls"],
-            path=data.get("path"),
-            url=data.get("url"),
+            api_urls=data["api_urls"],
+            swagger_path=data.get("swagger_path"),
+            swagger_url=data.get("swagger_url"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -76,9 +76,9 @@ class SpecConfig:
         """
         return {
             "name": self.name,
-            "urls": self.urls,
-            "path": str(self.path) if self.path is not None else None,
-            "url": self.url,
+            "api_urls": self.api_urls,
+            "swagger_path": str(self.swagger_path) if self.swagger_path is not None else None,
+            "swagger_url": self.swagger_url,
         }
 
 
@@ -92,13 +92,9 @@ class CoverageSettings:
     - Deserialization (for xdist workers)
     """
 
-    swagger: str | Path | None = None
+    spec: str | Path | None = None
     output_dir: Path = field(default_factory=lambda: Path("coverage-output"))
     formats: set[str] = field(default_factory=lambda: {"json", "csv", "html"})
-
-    # Origin filtering
-    base_url: str | None = None  # Single origin filter
-    include_base_urls: set[str] = field(default_factory=set)  # Allowlist of origins
 
     # Path normalization
     strip_prefixes: list[str] = field(default_factory=list)  # Manual prefixes to strip
@@ -111,9 +107,9 @@ class CoverageSettings:
 
     def __post_init__(self) -> None:
         """Validate and normalize settings after initialization."""
-        # Validate swagger path/URL
-        if self.swagger is not None:
-            self.swagger = self._validate_swagger(self.swagger)
+        # Validate spec path/URL
+        if self.spec is not None:
+            self.spec = self._validate_spec(self.spec)
 
         # Ensure output_dir is a Path
         if isinstance(self.output_dir, str):
@@ -125,22 +121,16 @@ class CoverageSettings:
         elif isinstance(self.formats, list | tuple):
             self.formats = set(self.formats)
 
-        # Parse include_base_urls if string
-        if isinstance(self.include_base_urls, str):
-            self.include_base_urls = {u.strip() for u in self.include_base_urls.split(",") if u.strip()}
-        elif isinstance(self.include_base_urls, list | tuple):
-            self.include_base_urls = set(self.include_base_urls)
-
         # Parse strip_prefixes if string
         if isinstance(self.strip_prefixes, str):
             self.strip_prefixes = [p.strip() for p in self.strip_prefixes.split(",") if p.strip()]
 
     @staticmethod
-    def _validate_swagger(value: str | Path) -> str | Path:
-        """Validate swagger source: file path or URL.
+    def _validate_spec(value: str | Path) -> str | Path:
+        """Validate spec source: file path or URL.
 
         Args:
-            value: Swagger path or URL
+            value: Spec path or URL
 
         Returns:
             Validated path or URL string
@@ -170,47 +160,45 @@ class CoverageSettings:
         Returns:
             CoverageSettings instance
         """
-        swagger = config.getoption("swagger", None)
+        coverage_spec = config.getoption("coverage_spec", None)
 
         # Read multi-spec CLI options
         spec_name = config.getoption("coverage_spec_name", None)
-        spec_path = config.getoption("coverage_spec_path", None)
-        spec_url = config.getoption("coverage_spec_url", None)
-        spec_base_urls = config.getoption("coverage_spec_base_url", None) or []
+        spec_api_urls = config.getoption("coverage_spec_api_url", None) or []
 
         specs: list[SpecConfig] = []
         top_level: dict[str, Any] = {}
-        any_spec_flag = spec_name or spec_path or spec_url
 
-        if swagger and any_spec_flag:
-            # --swagger cannot be combined with multi-spec flags; swagger wins
-            logger.warning("--swagger cannot be combined with multi-spec flags; using --swagger mode")
-        elif any_spec_flag:
-            if not spec_name:
+        if coverage_spec and spec_name:
+            # --coverage-spec with --coverage-spec-name → multi-spec mode via CLI
+            if not spec_api_urls:
                 pytest.exit(
-                    "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
-                    returncode=1,
-                )
-            elif not spec_base_urls:
-                pytest.exit(
-                    "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
-                    returncode=1,
-                )
-            elif spec_path and spec_url:
-                pytest.exit(
-                    "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+                    "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url",
                     returncode=1,
                 )
             else:
+                spec_value = str(coverage_spec)
+                swagger_url: str | None = None
+                swagger_path: str | None = None
+                if spec_value.startswith(("http://", "https://")):
+                    swagger_url = spec_value
+                else:
+                    swagger_path = spec_value
                 specs = [
                     SpecConfig(
                         name=spec_name,
-                        urls=spec_base_urls,
-                        path=spec_path,
-                        url=spec_url,
+                        api_urls=spec_api_urls,
+                        swagger_path=swagger_path,
+                        swagger_url=swagger_url,
                     )
                 ]
-        elif swagger is None:
+                coverage_spec = None  # Use multi-spec path
+        elif spec_name and not coverage_spec:
+            pytest.exit(
+                "[api-coverage] --coverage-spec-name requires --coverage-spec",
+                returncode=1,
+            )
+        elif coverage_spec is None:
             from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
                 _discover_config_file,
                 load_multi_spec_config,
@@ -233,9 +221,9 @@ class CoverageSettings:
 
             # Validate that each spec's path exists on disk
             for spec in specs:
-                if spec.path and not Path(str(spec.path)).exists():
+                if spec.swagger_path and not Path(str(spec.swagger_path)).exists():
                     pytest.exit(
-                        f"[api-coverage] Spec file not found: {spec.path} (spec: '{spec.name}')",
+                        f"[api-coverage] Spec file not found: {spec.swagger_path} (spec: '{spec.name}')",
                         returncode=1,
                     )
 
@@ -254,11 +242,9 @@ class CoverageSettings:
             effective_formats = top_level["formats"]
 
         return cls(
-            swagger=swagger,
+            spec=coverage_spec,
             output_dir=Path(effective_output),
             formats=effective_formats,
-            base_url=config.getoption("coverage_base_url", None),
-            include_base_urls=config.getoption("coverage_include_base_url", None) or "",  # type: ignore[arg-type]
             strip_prefixes=config.getoption("coverage_strip_prefix", None) or "",  # type: ignore[arg-type]
             split_by_origin=config.getoption("coverage_split_by_origin", False),
             specs=specs,
@@ -274,9 +260,9 @@ class CoverageSettings:
         Returns:
             CoverageSettings instance
         """
-        swagger = data.get("swagger")
-        if swagger and not str(swagger).startswith(("http://", "https://")):
-            swagger = Path(swagger)
+        spec = data.get("spec")
+        if spec and not str(spec).startswith(("http://", "https://")):
+            spec = Path(spec)
 
         output_dir = data.get("output_dir", "coverage-output")
         if isinstance(output_dir, str):
@@ -286,18 +272,12 @@ class CoverageSettings:
         if isinstance(formats, list):
             formats = set(formats)
 
-        include_base_urls = data.get("include_base_urls", set())
-        if isinstance(include_base_urls, list):
-            include_base_urls = set(include_base_urls)
-
         specs = [SpecConfig.from_dict(s) for s in data.get("specs", [])]
 
         return cls(
-            swagger=swagger,
+            spec=spec,
             output_dir=output_dir,
             formats=formats,
-            base_url=data.get("base_url"),
-            include_base_urls=include_base_urls,
             strip_prefixes=data.get("strip_prefixes", []),
             split_by_origin=data.get("split_by_origin", False),
             specs=specs,
@@ -310,11 +290,9 @@ class CoverageSettings:
             Dictionary with serializable values
         """
         return {
-            "swagger": str(self.swagger) if self.swagger else None,
+            "spec": str(self.spec) if self.spec else None,
             "output_dir": str(self.output_dir),
             "formats": list(self.formats),
-            "base_url": self.base_url,
-            "include_base_urls": list(self.include_base_urls),
             "strip_prefixes": self.strip_prefixes,
             "split_by_origin": self.split_by_origin,
             "specs": [s.to_dict() for s in self.specs],
@@ -324,6 +302,6 @@ class CoverageSettings:
         """Check if coverage collection is enabled.
 
         Returns:
-            True if swagger is configured or specs list is non-empty
+            True if spec is configured or specs list is non-empty
         """
-        return self.swagger is not None or bool(self.specs)
+        return self.spec is not None or bool(self.specs)

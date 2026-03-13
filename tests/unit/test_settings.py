@@ -11,19 +11,14 @@ from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> Any:
     """Create a mock pytest.Config with standard option defaults."""
     defaults: dict[str, Any] = {
-        "swagger": None,
+        "coverage_spec": None,
         "coverage_output": "coverage-output",
         "coverage_format": "json,csv,html",
-        "coverage_base_url": None,
-        "coverage_include_base_url": None,
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
-        # new keys:
         "coverage_config": None,
         "coverage_spec_name": None,
-        "coverage_spec_path": None,
-        "coverage_spec_url": None,
-        "coverage_spec_base_url": None,
+        "coverage_spec_api_url": None,
     }
     if overrides:
         defaults.update(overrides)
@@ -38,20 +33,20 @@ def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> A
 class TestIsEnabled:
     """Tests for CoverageSettings.is_enabled()."""
 
-    def test_is_enabled_swagger(self) -> None:
-        """is_enabled() returns True when swagger is set (existing behaviour preserved)."""
-        settings = CoverageSettings(swagger="https://api.example.com/swagger.json")
+    def test_is_enabled_spec(self) -> None:
+        """is_enabled() returns True when spec is set."""
+        settings = CoverageSettings(spec="https://api.example.com/swagger.json")
         assert settings.is_enabled() is True
 
     def test_is_enabled_specs_list(self) -> None:
         """is_enabled() returns True when specs list is non-empty."""
         settings = CoverageSettings(
-            specs=[SpecConfig(name="auth", urls=["https://auth.example.com"], path="./auth.yaml")]
+            specs=[SpecConfig(name="auth", api_urls=["https://auth.example.com"], swagger_path="./auth.yaml")]
         )
         assert settings.is_enabled() is True
 
     def test_is_enabled_false_when_neither(self) -> None:
-        """is_enabled() returns False when neither swagger nor specs are set."""
+        """is_enabled() returns False when neither spec nor specs are set."""
         settings = CoverageSettings()
         assert settings.is_enabled() is False
 
@@ -62,7 +57,7 @@ class TestToDict:
     def test_to_dict_includes_specs(self) -> None:
         """to_dict()['specs'] is a list of dicts, not SpecConfig objects."""
         settings = CoverageSettings(
-            specs=[SpecConfig(name="auth", urls=["https://auth.example.com"], path="./auth.yaml")]
+            specs=[SpecConfig(name="auth", api_urls=["https://auth.example.com"], swagger_path="./auth.yaml")]
         )
         result = settings.to_dict()
         assert "specs" in result
@@ -71,7 +66,7 @@ class TestToDict:
         spec_dict = result["specs"][0]
         assert isinstance(spec_dict, dict)
         assert spec_dict["name"] == "auth"
-        assert spec_dict["path"] == "auth.yaml"  # Path("./auth.yaml") normalises to "auth.yaml"
+        assert spec_dict["swagger_path"] == "auth.yaml"  # Path("./auth.yaml") normalises to "auth.yaml"
 
 
 class TestFromDict:
@@ -80,7 +75,7 @@ class TestFromDict:
     def test_from_dict_reconstructs_specs(self) -> None:
         """from_dict() reconstructs SpecConfig objects from the specs list."""
         settings = CoverageSettings.from_dict(
-            {"specs": [{"name": "auth", "urls": ["https://auth.example.com"], "path": "./auth.yaml"}]}
+            {"specs": [{"name": "auth", "api_urls": ["https://auth.example.com"], "swagger_path": "./auth.yaml"}]}
         )
         assert len(settings.specs) == 1
         spec = settings.specs[0]
@@ -97,104 +92,80 @@ class TestFromPytestConfig:
     """Tests for CoverageSettings.from_pytest_config() with new CLI flags."""
 
     def test_from_pytest_config_cli_spec_path(self, mocker: Any) -> None:
-        """CLI flags with path assemble a single SpecConfig with name, path, and base_urls."""
+        """CLI flags with local path assemble a single SpecConfig with name, swagger_path, and api_urls."""
         mock_config = _make_mock_config(
             mocker,
             {
+                "coverage_spec": "./auth.yaml",
                 "coverage_spec_name": "auth",
-                "coverage_spec_path": "./auth.yaml",
-                "coverage_spec_base_url": ["https://auth.example.com"],
+                "coverage_spec_api_url": ["https://auth.example.com"],
             },
         )
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert len(settings.specs) == 1
         spec = settings.specs[0]
         assert spec.name == "auth"
-        assert spec.path == Path("auth.yaml")  # Path("./auth.yaml") normalises to Path("auth.yaml")
-        assert spec.urls == ["https://auth.example.com"]
+        assert spec.swagger_path == Path("auth.yaml")  # Path("./auth.yaml") normalises to Path("auth.yaml")
+        assert spec.api_urls == ["https://auth.example.com"]
 
     def test_from_pytest_config_cli_spec_url(self, mocker: Any) -> None:
-        """CLI flags with url assemble a single SpecConfig with url set."""
+        """CLI flags with URL assemble a single SpecConfig with swagger_url set."""
         mock_config = _make_mock_config(
             mocker,
             {
+                "coverage_spec": "https://orders.example.com/openapi.json",
                 "coverage_spec_name": "orders",
-                "coverage_spec_url": "https://orders.example.com/openapi.json",
-                "coverage_spec_base_url": ["https://orders.example.com"],
+                "coverage_spec_api_url": ["https://orders.example.com"],
             },
         )
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert len(settings.specs) == 1
         spec = settings.specs[0]
         assert spec.name == "orders"
-        assert spec.url == "https://orders.example.com/openapi.json"
-        assert spec.urls == ["https://orders.example.com"]
-
-    def test_from_pytest_config_swagger_wins_over_spec_flags(self, mocker: Any, caplog: Any) -> None:
-        """When --swagger and spec flags both set, swagger wins, specs is empty, warning logged."""
-        import logging
-
-        mock_config = _make_mock_config(
-            mocker,
-            {
-                "swagger": "https://api.example.com/swagger.json",
-                "coverage_spec_path": "./auth.yaml",
-                "coverage_spec_base_url": ["https://auth.example.com"],
-            },
-        )
-        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
-            settings = CoverageSettings.from_pytest_config(mock_config)
-        assert settings.swagger == "https://api.example.com/swagger.json"
-        assert settings.specs == []
-        assert "warning" in caplog.text.lower() or "--swagger" in caplog.text.lower()
+        assert spec.swagger_url == "https://orders.example.com/openapi.json"
+        assert spec.api_urls == ["https://orders.example.com"]
 
     def test_from_pytest_config_no_spec_flags_no_specs(self, mocker: Any) -> None:
-        """When all new spec options are None, specs is empty."""
+        """When all spec options are None, specs is empty."""
         mock_config = _make_mock_config(mocker)
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.specs == []
 
-    def test_from_pytest_config_base_url_none_exits(self, mocker: Any) -> None:
-        """coverage_spec_base_url=None with a spec name must call pytest.exit() (SystemExit)."""
+    def test_from_pytest_config_api_url_none_exits(self, mocker: Any) -> None:
+        """coverage_spec_api_url=None with a spec name must call pytest.exit() (SystemExit)."""
         import pytest
 
         mock_config = _make_mock_config(
             mocker,
             {
+                "coverage_spec": "./auth.yaml",
                 "coverage_spec_name": "auth",
-                "coverage_spec_path": "./auth.yaml",
-                "coverage_spec_base_url": None,
+                "coverage_spec_api_url": None,
             },
         )
         exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
         with pytest.raises(SystemExit):
             CoverageSettings.from_pytest_config(mock_config)
         exit_mock.assert_called_once_with(
-            "[api-coverage] --coverage-spec-name requires --coverage-spec-base-url",
+            "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url",
             returncode=1,
         )
 
 
-def test_spec_path_without_name_exits(tmp_path, mocker):
-    """Missing --coverage-spec-name with --coverage-spec-path must call pytest.exit() (SystemExit)."""
-    import pytest
+def test_spec_name_without_spec_exits(tmp_path, mocker):
+    """Missing --coverage-spec with --coverage-spec-name must call pytest.exit() (SystemExit)."""
     from unittest.mock import MagicMock
 
-    spec_file = tmp_path / "api.yaml"
-    spec_file.write_text("openapi: '3.0.0'")
+    import pytest
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
-        "swagger": None,
-        "coverage_spec_name": None,  # <- missing
-        "coverage_spec_path": str(spec_file),
-        "coverage_spec_url": None,
-        "coverage_spec_base_url": ["https://api.example.com"],
+        "coverage_spec": None,  # no spec
+        "coverage_spec_name": "auth",  # name without spec
+        "coverage_spec_api_url": ["https://api.example.com"],
         "coverage_config": None,
         "coverage_output": "coverage-output",
         "coverage_format": "json,csv,html",
-        "coverage_base_url": None,
-        "coverage_include_base_url": None,
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)
@@ -204,38 +175,7 @@ def test_spec_path_without_name_exits(tmp_path, mocker):
     with pytest.raises(SystemExit):
         CoverageSettings.from_pytest_config(config)
     exit_mock.assert_called_once_with(
-        "[api-coverage] --coverage-spec-path/--coverage-spec-url requires --coverage-spec-name",
-        returncode=1,
-    )
-
-
-def test_spec_path_and_url_mutually_exclusive_exits(tmp_path, mocker):
-    """Providing both --coverage-spec-path and --coverage-spec-url must call pytest.exit() (SystemExit)."""
-    import pytest
-    from unittest.mock import MagicMock
-
-    config = MagicMock()
-    config.getoption.side_effect = lambda key, default=None: {
-        "swagger": None,
-        "coverage_spec_name": "auth",
-        "coverage_spec_path": "./auth.yaml",
-        "coverage_spec_url": "https://auth.example.com/openapi.json",
-        "coverage_spec_base_url": ["https://auth.example.com"],
-        "coverage_config": None,
-        "coverage_output": "coverage-output",
-        "coverage_format": "json,csv,html",
-        "coverage_base_url": None,
-        "coverage_include_base_url": None,
-        "coverage_strip_prefix": None,
-        "coverage_split_by_origin": False,
-    }.get(key, default)
-    config.rootpath = tmp_path
-
-    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
-    with pytest.raises(SystemExit):
-        CoverageSettings.from_pytest_config(config)
-    exit_mock.assert_called_once_with(
-        "[api-coverage] --coverage-spec-path and --coverage-spec-url are mutually exclusive",
+        "[api-coverage] --coverage-spec-name requires --coverage-spec",
         returncode=1,
     )
 
@@ -253,23 +193,19 @@ def test_top_level_output_dir_applied_from_config_file(tmp_path):
         f"output_dir: custom-reports\n"
         f"specs:\n"
         f"  - name: myapi\n"
-        f"    urls:\n"
+        f"    api_urls:\n"
         f"      - https://api.example.com\n"
-        f"    path: {spec_file}\n"
+        f"    swagger_path: {spec_file}\n"
     )
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
-        "swagger": None,
+        "coverage_spec": None,
         "coverage_spec_name": None,
-        "coverage_spec_path": None,
-        "coverage_spec_url": None,
-        "coverage_spec_base_url": None,
+        "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
         "coverage_output": "coverage-output",  # default value
         "coverage_format": "json,csv,html",
-        "coverage_base_url": None,
-        "coverage_include_base_url": None,
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)
@@ -289,16 +225,12 @@ def test_cli_output_dir_overrides_config_file(tmp_path):
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
-        "swagger": None,
+        "coverage_spec": None,
         "coverage_spec_name": None,
-        "coverage_spec_path": None,
-        "coverage_spec_url": None,
-        "coverage_spec_base_url": None,
+        "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
         "coverage_output": "from-cli",  # explicit CLI value
         "coverage_format": "json,csv,html",
-        "coverage_base_url": None,
-        "coverage_include_base_url": None,
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)

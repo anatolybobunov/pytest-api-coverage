@@ -43,13 +43,13 @@ def settings_two_specs(auth_spec_file, orders_spec_file):
         specs=[
             SpecConfig(
                 name="auth",
-                urls=["https://auth.example.com"],
-                path=auth_spec_file,
+                api_urls=["https://auth.example.com"],
+                swagger_path=auth_spec_file,
             ),
             SpecConfig(
                 name="orders",
-                urls=["https://orders.example.com"],
-                path=orders_spec_file,
+                api_urls=["https://orders.example.com"],
+                swagger_path=orders_spec_file,
             ),
         ]
     )
@@ -82,8 +82,8 @@ class TestMultiSpecOrchestratorInit:
             specs=[
                 SpecConfig(
                     name="bad-spec",
-                    urls=["https://bad.example.com"],
-                    path=tmp_path / "nonexistent.yaml",
+                    api_urls=["https://bad.example.com"],
+                    swagger_path=tmp_path / "nonexistent.yaml",
                 ),
             ]
         )
@@ -105,8 +105,8 @@ class TestMultiSpecOrchestratorInit:
         shared_url = "https://api.example.com"
         settings = CoverageSettings(
             specs=[
-                SpecConfig(name="auth", urls=[shared_url], path=auth_spec_file),
-                SpecConfig(name="orders", urls=[shared_url], path=orders_spec_file),
+                SpecConfig(name="auth", api_urls=[shared_url], swagger_path=auth_spec_file),
+                SpecConfig(name="orders", api_urls=[shared_url], swagger_path=orders_spec_file),
             ]
         )
 
@@ -136,8 +136,8 @@ class TestRouteInteraction:
         shared_url = "https://api.example.com"
         settings = CoverageSettings(
             specs=[
-                SpecConfig(name="auth", urls=[shared_url], path=auth_spec_file),
-                SpecConfig(name="orders", urls=[shared_url], path=orders_spec_file),
+                SpecConfig(name="auth", api_urls=[shared_url], swagger_path=auth_spec_file),
+                SpecConfig(name="orders", api_urls=[shared_url], swagger_path=orders_spec_file),
             ]
         )
 
@@ -166,8 +166,8 @@ class TestRouteInteraction:
             specs=[
                 SpecConfig(
                     name="auth",
-                    urls=["https://api.example.com/auth"],
-                    path=auth_spec_file,
+                    api_urls=["https://api.example.com/auth"],
+                    swagger_path=auth_spec_file,
                 ),
             ]
         )

@@ -25,12 +25,12 @@ paths:
 COVERAGE_CONFIG_TEMPLATE = """
 specs:
   - name: {name1}
-    path: {path1}
-    urls:
+    swagger_path: {path1}
+    api_urls:
       - {url1}
   - name: {name2}
-    path: {path2}
-    urls:
+    swagger_path: {path2}
+    api_urls:
       - {url2}
 """
 
@@ -72,7 +72,9 @@ def test_request_to_unknown_url_no_error(pytester: pytest.Pytester) -> None:
     spec = pytester.path / "auth.yaml"
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
-    config_file.write_text("specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n")
+    config_file.write_text(
+        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_urls:\n      - https://auth.example.com\n"
+    )
     pytester.makepyfile("""
         def test_placeholder():
             pass
@@ -83,11 +85,11 @@ def test_request_to_unknown_url_no_error(pytester: pytest.Pytester) -> None:
     assert result.ret == 0
 
 
-def test_legacy_swagger_mode_unchanged(pytester: pytest.Pytester) -> None:
-    """--swagger flag runs without error and does not produce prefixed files.
+def test_coverage_spec_mode_unchanged(pytester: pytest.Pytester) -> None:
+    """--coverage-spec flag runs without error and does not produce prefixed files.
 
     No actual HTTP calls are made in this test so no report file is written,
-    but the critical invariant is that --swagger mode does not produce any
+    but the critical invariant is that --coverage-spec mode does not produce any
     prefixed file (auth-coverage.json etc.) and exits cleanly.
     """
     spec = pytester.path / "api.yaml"
@@ -96,12 +98,12 @@ def test_legacy_swagger_mode_unchanged(pytester: pytest.Pytester) -> None:
         def test_placeholder():
             pass
     """)
-    result = pytester.runpytest("--swagger=api.yaml", "--coverage-output=out")
+    result = pytester.runpytest("--coverage-spec=api.yaml", "--coverage-output=out")
     result.assert_outcomes(passed=1)
     out = pytester.path / "out"
     # Prefixed files must NOT exist (no multi-spec mode activated)
     if out.exists():
-        assert not list(out.glob("*-coverage.json")), "Unexpected prefixed files in legacy mode"
+        assert not list(out.glob("*-coverage.json")), "Unexpected prefixed files in single-spec mode"
     # No error output
     assert result.ret == 0
 
@@ -111,7 +113,9 @@ def test_zero_matched_requests_writes_files(pytester: pytest.Pytester) -> None:
     spec = pytester.path / "auth.yaml"
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
-    config_file.write_text("specs:\n  - name: auth\n    path: auth.yaml\n    urls:\n      - https://auth.example.com\n")
+    config_file.write_text(
+        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_urls:\n      - https://auth.example.com\n"
+    )
     pytester.makepyfile("""
         def test_placeholder():
             pass

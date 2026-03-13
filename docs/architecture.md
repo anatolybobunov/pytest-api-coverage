@@ -166,9 +166,8 @@ class PathCoverage:
 ```
 
 **Origin Filtering**:
-- `base_url` - single origin filter
-- `include_base_urls` - allowlist of origins
 - `split_by_origin` - separate coverage per origin
+- `include_base_urls` (internal) - allowlist of origins, used by orchestrator via `api_urls`
 
 ### Writers (`writers/`)
 

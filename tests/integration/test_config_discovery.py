@@ -16,8 +16,8 @@ _MINIMAL_OPENAPI = "openapi: '3.0.0'\ninfo:\n  title: Test\n  version: '1.0'\npa
 _COVERAGE_CONFIG_ONE_SPEC = """\
 specs:
   - name: auth
-    path: ./auth.yaml
-    urls:
+    swagger_path: ./auth.yaml
+    api_urls:
       - https://auth.example.com
 """
 
@@ -27,8 +27,8 @@ _COVERAGE_CONFIG_JSON_ONE_SPEC = """\
   "specs": [
     {
       "name": "orders",
-      "url": "https://orders.example.com/openapi.json",
-      "urls": ["https://orders.example.com"]
+      "swagger_url": "https://orders.example.com/openapi.json",
+      "api_urls": ["https://orders.example.com"]
     }
   ]
 }
