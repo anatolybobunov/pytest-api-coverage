@@ -250,3 +250,53 @@ def test_discover_neither_returns_none(tmp_path: Path) -> None:
     result = _discover_config_file(tmp_path)
 
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# api_urls type validation
+# ---------------------------------------------------------------------------
+
+
+class TestApiUrlsTypeValidation:
+    def test_api_urls_as_string_is_rejected(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """api_urls as a plain string must be rejected with a warning, spec skipped."""
+        import logging
+
+        data = {
+            "specs": [
+                {
+                    "name": "users-api",
+                    "swagger_path": "users.yaml",
+                    "api_urls": "https://api.example.com",  # string, not list
+                }
+            ]
+        }
+        config_file = tmp_path / "coverage-config.yaml"
+        config_file.write_text(yaml.dump(data), encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            specs, _ = load_multi_spec_config(config_file)
+
+        assert specs == [], "string api_urls must cause the spec to be skipped"
+        assert "list" in caplog.text.lower() or "invalid" in caplog.text.lower()
+
+    def test_api_urls_as_list_is_accepted(self, tmp_path: Path) -> None:
+        """api_urls as a proper list must be accepted."""
+        data = {
+            "specs": [
+                {
+                    "name": "users-api",
+                    "swagger_path": "users.yaml",
+                    "api_urls": ["https://api.example.com"],
+                }
+            ]
+        }
+        config_file = tmp_path / "coverage-config.yaml"
+        config_file.write_text(yaml.dump(data), encoding="utf-8")
+
+        specs, _ = load_multi_spec_config(config_file)
+
+        assert len(specs) == 1
+        assert specs[0].api_urls == ["https://api.example.com"]

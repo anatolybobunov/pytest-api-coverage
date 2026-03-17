@@ -56,6 +56,14 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     if not api_urls:
         logger.warning("Spec '%s' has empty or missing 'api_urls', skipping", name)
         return None
+    if not isinstance(api_urls, list):
+        logger.warning(
+            "Spec '%s' has invalid 'api_urls': expected a list, got %s. "
+            "Use YAML list syntax:\n  api_urls:\n    - \"https://...\"",
+            name,
+            type(api_urls).__name__,
+        )
+        return None
     swagger_path = entry.get("swagger_path")
     swagger_url = entry.get("swagger_url")
     if swagger_path and swagger_url:

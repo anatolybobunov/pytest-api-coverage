@@ -20,6 +20,8 @@ except ImportError:
 from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse
 
+_PATCH_SENTINEL = "_pytest_api_coverage_patched"
+
 if TYPE_CHECKING:
     import httpx
 
@@ -50,8 +52,12 @@ class HttpxAdapter:
 
             collector = self._collector
 
-            # Patch sync Client.request
+            # Patch sync Client.request — if already patched by another instance, skip entirely.
+            # This instance owns nothing, so _installed stays False.
             original = httpx.Client.request
+            if getattr(original, _PATCH_SENTINEL, False):
+                return  # Another instance already patched — do not claim ownership
+
             self._original_request = original
 
             def patched_request(
@@ -81,42 +87,47 @@ class HttpxAdapter:
 
                 return response
 
+            setattr(patched_request, _PATCH_SENTINEL, True)
             httpx.Client.request = patched_request  # type: ignore[method-assign]
 
-            # Patch async AsyncClient.request
+            # Patch async AsyncClient.request independently — a prior adapter may have patched
+            # only the async client, but since the sync guard above passed, this instance owns
+            # at least the sync patch.  Async is best-effort.
             original_async = httpx.AsyncClient.request
-            self._original_async_request = original_async
+            if not getattr(original_async, _PATCH_SENTINEL, False):
+                self._original_async_request = original_async
 
-            async def patched_async_request(
-                self: "httpx.AsyncClient",
-                method: str,
-                url: "httpx.URL | str",
-                **kwargs: Any,
-            ) -> "httpx.Response":
-                start_time = time.perf_counter()
-                timestamp = datetime.now(UTC)
+                async def patched_async_request(
+                    self: "httpx.AsyncClient",
+                    method: str,
+                    url: "httpx.URL | str",
+                    **kwargs: Any,
+                ) -> "httpx.Response":
+                    start_time = time.perf_counter()
+                    timestamp = datetime.now(UTC)
 
-                response = await original_async(self, method, url, **kwargs)
+                    response = await original_async(self, method, url, **kwargs)
 
-                duration_ms = (time.perf_counter() - start_time) * 1000
+                    duration_ms = (time.perf_counter() - start_time) * 1000
 
-                try:
-                    _record_httpx_interaction(
-                        collector=collector,
-                        method=method,
-                        url=str(url),
-                        response=response,
-                        timestamp=timestamp,
-                        duration_ms=duration_ms,
-                    )
-                except Exception:
-                    logger.debug("Failed to record interaction", exc_info=True)
+                    try:
+                        _record_httpx_interaction(
+                            collector=collector,
+                            method=method,
+                            url=str(url),
+                            response=response,
+                            timestamp=timestamp,
+                            duration_ms=duration_ms,
+                        )
+                    except Exception:
+                        logger.debug("Failed to record interaction", exc_info=True)
 
-                return response
+                    return response
 
-            httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
+                setattr(patched_async_request, _PATCH_SENTINEL, True)
+                httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
 
-            self._installed = True
+            self._installed = True  # Only reached when sync patch was applied by this instance
 
     def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""

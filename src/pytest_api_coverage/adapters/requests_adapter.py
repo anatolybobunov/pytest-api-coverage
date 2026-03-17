@@ -10,11 +10,18 @@ from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger("pytest_api_coverage")
 
-import requests
-import requests.sessions
+try:
+    import requests
+    import requests.sessions
+
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse
+
+_PATCH_SENTINEL = "_pytest_api_coverage_patched"
 
 
 class RequestsAdapter:
@@ -32,12 +39,18 @@ class RequestsAdapter:
 
     def install(self) -> None:
         """Install adapter to intercept requests library traffic."""
+        if not REQUESTS_AVAILABLE:
+            return  # requests not installed, skip silently
         with self._lock:
             if self._installed:
                 return
 
             collector = self._collector
             original = requests.sessions.Session.request
+            if getattr(original, _PATCH_SENTINEL, False):
+                # Another adapter instance already patched this method — skip to avoid stacking
+                return
+
             self._original_request = original
 
             def patched_request(
@@ -68,11 +81,14 @@ class RequestsAdapter:
 
                 return response
 
+            setattr(patched_request, _PATCH_SENTINEL, True)
             requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
             self._installed = True
 
     def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
+        if not REQUESTS_AVAILABLE:
+            return
         with self._lock:
             if not self._installed:
                 return

@@ -107,6 +107,9 @@ class CoverageSettings:
     # Multi-spec support
     specs: list[SpecConfig] = field(default_factory=list)
 
+    # Deferred configuration error (raised in pytest_sessionstart, not pytest_configure)
+    config_error: str | None = None
+
     def __post_init__(self) -> None:
         """Validate and normalize settings after initialization."""
         # Validate spec path/URL
@@ -181,9 +184,7 @@ class CoverageSettings:
         if coverage_spec and spec_name:
             # --coverage-spec with --coverage-spec-name → multi-spec mode via CLI
             if not spec_api_urls:
-                raise pytest.UsageError(
-                    "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url"
-                )
+                return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-spec-api-url")
             else:
                 spec_value = str(coverage_spec)
                 swagger_url: str | None = None
@@ -201,6 +202,8 @@ class CoverageSettings:
                     )
                 ]
                 coverage_spec = None  # Use multi-spec path
+        elif spec_name and not coverage_spec:
+            return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-spec")
         elif coverage_spec is None:
             from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
                 _discover_config_file,
@@ -212,9 +215,7 @@ class CoverageSettings:
             if explicit_config:
                 config_path = Path(explicit_config)
                 if not config_path.exists():
-                    raise pytest.UsageError(
-                        f"[api-coverage] Config file not found: {config_path}"
-                    )
+                    return cls(config_error=f"[api-coverage] Config file not found: {config_path}")
                 specs, top_level = load_multi_spec_config(config_path)
             else:
                 discovered = _discover_config_file(config.rootpath)
@@ -239,8 +240,8 @@ class CoverageSettings:
             # Validate that each spec's path exists on disk
             for spec in specs:
                 if spec.swagger_path and not Path(str(spec.swagger_path)).exists():
-                    raise pytest.UsageError(
-                        f"[api-coverage] Spec file not found: {spec.swagger_path} (spec: '{spec.name}')"
+                    return cls(
+                        config_error=f"[api-coverage] Spec file not found: {spec.swagger_path} (spec: '{spec.name}')"
                     )
 
         # Apply top-level config values; CLI options take precedence over config file.
@@ -299,6 +300,7 @@ class CoverageSettings:
             strip_prefixes=data.get("strip_prefixes", []),
             split_by_origin=data.get("split_by_origin", False),
             specs=specs,
+            config_error=data.get("config_error"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -314,12 +316,21 @@ class CoverageSettings:
             "strip_prefixes": self.strip_prefixes,
             "split_by_origin": self.split_by_origin,
             "specs": [s.to_dict() for s in self.specs],
+            "config_error": self.config_error,
         }
+
+    def raise_if_error(self) -> None:
+        """Raise pytest.UsageError if a deferred configuration error was stored.
+
+        Call this from pytest_sessionstart, not pytest_configure.
+        """
+        if self.config_error:
+            raise pytest.UsageError(self.config_error)
 
     def is_enabled(self) -> bool:
         """Check if coverage collection is enabled.
 
         Returns:
-            True if spec is configured or specs list is non-empty
+            True if spec is configured, specs list is non-empty, or a config error is deferred
         """
-        return self.spec is not None or bool(self.specs)
+        return self.spec is not None or bool(self.specs) or self.config_error is not None

@@ -334,3 +334,35 @@ def test_terminal_summary_shows_correct_output_dir():
 
     written_text = " ".join(str(c) for c in tr.write_line.call_args_list)
     assert "custom-reports" in written_text
+
+
+class TestMasterPluginZeroRequestsTerminal:
+    def test_zero_requests_writes_to_terminal_not_logger(self) -> None:
+        """CoverageMasterPlugin zero-requests warning must use terminalreporter, not logger."""
+        from unittest.mock import MagicMock, patch
+
+        from pytest_api_coverage.config.settings import CoverageSettings
+        from pytest_api_coverage.plugin import CoverageMasterPlugin
+
+        plugin = CoverageMasterPlugin.__new__(CoverageMasterPlugin)
+        plugin.settings = CoverageSettings()
+        plugin.swagger_spec = MagicMock()  # swagger_spec is set
+        plugin.worker_data = {}  # empty — triggers the zero-requests path
+        plugin.orchestrator = None
+        plugin.report_data = None
+        plugin._swagger_load_error = None
+
+        tr = MagicMock()
+
+        with patch("pytest_api_coverage.plugin.logger") as mock_logger:
+            plugin.pytest_terminal_summary(tr)
+
+        # Must write to terminal
+        tr.write_sep.assert_called()
+        tr.write_line.assert_called()
+        written = " ".join(str(c) for c in tr.write_line.call_args_list)
+        assert "0 HTTP requests" in written
+
+        # Must NOT use logger.warning for this message
+        for call in mock_logger.warning.call_args_list:
+            assert "0 HTTP requests" not in str(call)

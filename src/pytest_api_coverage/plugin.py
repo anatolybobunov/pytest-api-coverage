@@ -150,14 +150,14 @@ class _InterceptionMixin:
     collector: CoverageCollector
     _adapters: list[Any]
 
-    @pytest.hookimpl
+    @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item: Item) -> None:
-        """Set current test name before test runs."""
+        """Set current test name before any other plugin's setup runs."""
         self.collector.set_current_test(item.nodeid)
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: Item) -> None:
-        """Clear current test name after test completes."""
+        """Clear current test name after all other plugins' teardown completes."""
         self.collector.set_current_test(None)
 
     def _setup_http_interception(self) -> None:
@@ -193,7 +193,7 @@ class _SwaggerLoadMixin:
             self.swagger_spec = SwaggerParser.parse(self.settings.spec)
         except Exception as e:
             self._swagger_load_error = str(e)
-            logger.warning("Failed to load swagger: %s", e)
+            logger.warning("Failed to load swagger: %s", e, exc_info=True)
 
 
 class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
@@ -209,13 +209,16 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         self._no_requests_captured: bool = False
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
-        if self.settings.specs:
-            self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception at session start."""
+        self.settings.raise_if_error()  # raise deferred config errors here
+        # Load all specs BEFORE installing HTTP adapters so that any remote spec
+        # fetches (httpx.Client) are not intercepted and recorded as coverage data.
         self._load_swagger()
+        if self.settings.specs:
+            self.orchestrator = MultiSpecOrchestrator(self.settings)
         self._setup_http_interception()
         tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
         if tr is not None:
@@ -290,13 +293,16 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         self._swagger_load_error: str | None = None
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
-        if self.settings.specs:
-            self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Load swagger and log plugin activity at session start."""
+        self.settings.raise_if_error()  # raise deferred config errors here
+        # Initialize orchestrator here (not in __init__) to ensure spec fetches
+        # happen before HTTP adapters are installed.
         self._load_swagger()
+        if self.settings.specs:
+            self.orchestrator = MultiSpecOrchestrator(self.settings)
         tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
         if tr is None:
             return
@@ -365,7 +371,8 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
                 f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
             )
         elif self.swagger_spec and not self.worker_data:
-            logger.warning(
+            terminalreporter.write_sep("=", "API Coverage Summary")
+            terminalreporter.write_line(
                 "[api-coverage] 0 HTTP requests captured from workers. "
                 "Check that workers are sending coverage data and that "
                 "mocking libraries are not intercepting at the socket level."
@@ -428,6 +435,7 @@ class CoverageWorkerPlugin(_InterceptionMixin):
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception on worker."""
+        self.settings.raise_if_error()  # raise deferred config errors here
         self._setup_http_interception()
 
     @pytest.hookimpl

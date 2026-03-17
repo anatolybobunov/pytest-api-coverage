@@ -131,10 +131,8 @@ class TestFromPytestConfig:
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.specs == []
 
-    def test_from_pytest_config_api_url_none_exits(self, mocker: Any) -> None:
-        """coverage_spec_api_url=None with a spec name must raise pytest.UsageError."""
-        import pytest
-
+    def test_from_pytest_config_api_url_none_defers_error(self, mocker: Any) -> None:
+        """coverage_spec_api_url=None with a spec name must defer the error, not exit immediately."""
         mock_config = _make_mock_config(
             mocker,
             {
@@ -143,15 +141,14 @@ class TestFromPytestConfig:
                 "coverage_spec_api_url": None,
             },
         )
-        with pytest.raises(pytest.UsageError, match="--coverage-spec-name requires --coverage-spec-api-url"):
-            CoverageSettings.from_pytest_config(mock_config)
+        settings = CoverageSettings.from_pytest_config(mock_config)
+        assert settings.config_error is not None
+        assert "--coverage-spec-api-url" in settings.config_error
 
 
-def test_spec_name_without_spec_exits(tmp_path, mocker):
-    """--coverage-spec-name with no config file and no --coverage-spec exits with 'no spec found'."""
+def test_spec_name_without_spec_defers_error(tmp_path, mocker):
+    """Missing --coverage-spec with --coverage-spec-name must defer the error, not exit immediately."""
     from unittest.mock import MagicMock
-
-    import pytest
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
@@ -166,12 +163,13 @@ def test_spec_name_without_spec_exits(tmp_path, mocker):
     }.get(key, default)
     config.rootpath = tmp_path  # tmp_path has no config file to discover
 
-    with pytest.raises(pytest.UsageError, match="No spec named 'auth' found in config"):
-        CoverageSettings.from_pytest_config(config)
+    settings = CoverageSettings.from_pytest_config(config)
+    assert settings.config_error is not None
+    assert "--coverage-spec" in settings.config_error
 
 
 def test_spec_name_filters_config_specs(tmp_path, mocker):
-    """--coverage-spec-name filters specs from config file, returning only the matched spec."""
+    """--coverage-spec-name with coverage_config filters specs, but requires --coverage-spec for CLI mode."""
     from unittest.mock import MagicMock
 
     spec_file_auth = tmp_path / "auth.yaml"
@@ -206,15 +204,48 @@ def test_spec_name_filters_config_specs(tmp_path, mocker):
     config.rootpath = tmp_path
 
     settings = CoverageSettings.from_pytest_config(config)
-    assert len(settings.specs) == 1
-    assert settings.specs[0].name == "auth"
+    assert settings.config_error is not None
+    assert "--coverage-spec" in settings.config_error
 
 
-def test_spec_name_no_match_exits(tmp_path, mocker):
-    """--coverage-spec-name with no matching spec exits with available spec names listed."""
+class TestDeferredUsageError:
+    def test_from_pytest_config_stores_error_instead_of_raising(self, mocker: Any) -> None:
+        """from_pytest_config must store errors in config_error, not raise."""
+        mock_config = _make_mock_config(
+            mocker,
+            {
+                "coverage_spec": "./auth.yaml",
+                "coverage_spec_name": "auth",
+                "coverage_spec_api_url": None,
+            },
+        )
+        # Must NOT raise
+        settings = CoverageSettings.from_pytest_config(mock_config)
+        assert settings.config_error is not None
+        assert "--coverage-spec-api-url" in settings.config_error
+
+    def test_raise_if_error_raises_usage_error(self) -> None:
+        """raise_if_error() must raise pytest.UsageError with stored message."""
+        import pytest
+
+        settings = CoverageSettings(config_error="[api-coverage] some config error")
+        with pytest.raises(pytest.UsageError, match="some config error"):
+            settings.raise_if_error()
+
+    def test_raise_if_error_is_noop_when_no_error(self) -> None:
+        """raise_if_error() must be a no-op when config_error is None."""
+        settings = CoverageSettings()
+        settings.raise_if_error()  # must not raise
+
+    def test_is_enabled_when_config_error_set(self) -> None:
+        """is_enabled() must return True when config_error is set."""
+        settings = CoverageSettings(config_error="[api-coverage] some error")
+        assert settings.is_enabled() is True
+
+
+def test_spec_name_no_match_defers_error(tmp_path, mocker):
+    """--coverage-spec-name without --coverage-spec defers an error regardless of config file."""
     from unittest.mock import MagicMock
-
-    import pytest
 
     spec_file = tmp_path / "auth.yaml"
     spec_file.write_text("openapi: '3.0.0'")
@@ -240,12 +271,13 @@ def test_spec_name_no_match_exits(tmp_path, mocker):
     }.get(key, default)
     config.rootpath = tmp_path
 
-    with pytest.raises(pytest.UsageError, match="No spec named 'nonexistent' found in config"):
-        CoverageSettings.from_pytest_config(config)
+    settings = CoverageSettings.from_pytest_config(config)
+    assert settings.config_error is not None
+    assert "--coverage-spec" in settings.config_error
 
 
-def test_spec_name_autodiscover_and_filter(tmp_path, mocker):
-    """Auto-discovered config + --coverage-spec-name filters to the matching spec."""
+def test_spec_name_autodiscover_defers_error_without_coverage_spec(tmp_path, mocker):
+    """Auto-discovered config + --coverage-spec-name without --coverage-spec defers an error."""
     from unittest.mock import MagicMock
 
     spec_file_a = tmp_path / "a.yaml"
@@ -281,8 +313,8 @@ def test_spec_name_autodiscover_and_filter(tmp_path, mocker):
     config.rootpath = tmp_path
 
     settings = CoverageSettings.from_pytest_config(config)
-    assert len(settings.specs) == 1
-    assert settings.specs[0].name == "svc-b"
+    assert settings.config_error is not None
+    assert "--coverage-spec" in settings.config_error
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):
