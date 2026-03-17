@@ -49,6 +49,11 @@ def print_terminal_summary(
         f"   {summary.get('coverage_percentage', 0.0):.1f}%   {summary.get('total_requests', 0)} req"
         f"   {file_ref}"
     )
+    unmatched = report_data.get("summary", {}).get("unmatched_requests", 0)
+    if unmatched > 0:
+        terminalreporter.write_line(
+            f"[api-coverage] {unmatched} request(s) did not match any endpoint in the spec"
+        )
 
 
 def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: MultiSpecOrchestrator) -> None:

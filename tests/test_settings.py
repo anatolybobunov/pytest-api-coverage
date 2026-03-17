@@ -15,7 +15,7 @@ class TestCoverageSettingsInit:
         settings = CoverageSettings()
 
         assert settings.spec is None
-        assert settings.output_dir == Path("coverage-output")
+        assert settings.output_dir == Path("api-coverage-report")
         assert settings.formats == {"html"}
         assert settings.strip_prefixes == []
         assert settings.split_by_origin is False
@@ -309,7 +309,7 @@ class TestCoverageSettingsFromPytestConfig:
         mock_config = mocker.Mock()
         mock_config.getoption.side_effect = lambda key, default=None: {
             "coverage_spec": None,
-            "coverage_output": "coverage-output",
+            "coverage_output": "api-coverage-report",
             "coverage_format": "html",
             "coverage_strip_prefix": None,
             "coverage_split_by_origin": False,
@@ -323,7 +323,7 @@ class TestCoverageSettingsFromPytestConfig:
         settings = CoverageSettings.from_pytest_config(mock_config)
 
         assert settings.spec is None
-        assert settings.output_dir == Path("coverage-output")
+        assert settings.output_dir == Path("api-coverage-report")
         assert settings.formats == {"html"}
         assert settings.is_enabled() is False
 
@@ -332,7 +332,7 @@ class TestCoverageSettingsFromPytestConfig:
         mock_config = mocker.Mock()
         mock_config.getoption.side_effect = lambda key, default=None: {
             "coverage_spec": "https://api.com/spec.json",
-            "coverage_output": "coverage-output",
+            "coverage_output": "api-coverage-report",
             "coverage_format": "json",
             "coverage_strip_prefix": "/api/v1,/api/v2",
             "coverage_split_by_origin": True,

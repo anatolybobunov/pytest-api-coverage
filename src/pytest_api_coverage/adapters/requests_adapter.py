@@ -77,13 +77,14 @@ class RequestsAdapter:
                         duration_ms=duration_ms,
                     )
                 except Exception:
-                    logger.debug("Failed to record interaction", exc_info=True)
+                    logger.warning("requests: Failed to record %s %s", method, url, exc_info=True)
 
                 return response
 
             setattr(patched_request, _PATCH_SENTINEL, True)
             requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
             self._installed = True
+            logger.debug("Patched requests.Session.request for HTTP interception")
 
     def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
@@ -91,6 +92,11 @@ class RequestsAdapter:
             return
         with self._lock:
             if not self._installed:
+                return
+
+            current = requests.sessions.Session.request
+            if not getattr(current, _PATCH_SENTINEL, False):
+                self._installed = False
                 return
 
             if self._original_request is not None:
@@ -114,8 +120,7 @@ def _record_requests_interaction(
     duration_ms: float,
 ) -> None:
     """Record HTTP interaction to collector."""
-    # Parse URL
-    parsed = urlparse(url)
+    # Parse the final URL (after redirects); fall back to original if unavailable
     final_url = str(response.url) if response.url else url
     final_parsed = urlparse(final_url)
 
@@ -133,8 +138,8 @@ def _record_requests_interaction(
 
     # Extract query params
     query_params: dict[str, Any] = {}
-    if parsed.query:
-        query_params = parse_qs(parsed.query)
+    if final_parsed.query:
+        query_params = parse_qs(final_parsed.query)
     if kwargs.get("params"):
         params = kwargs["params"]
         if isinstance(params, dict):

@@ -83,7 +83,7 @@ class HttpxAdapter:
                         duration_ms=duration_ms,
                     )
                 except Exception:
-                    logger.debug("Failed to record interaction", exc_info=True)
+                    logger.warning("httpx sync: Failed to record %s %s", method, url, exc_info=True)
 
                 return response
 
@@ -120,7 +120,7 @@ class HttpxAdapter:
                             duration_ms=duration_ms,
                         )
                     except Exception:
-                        logger.debug("Failed to record interaction", exc_info=True)
+                        logger.warning("httpx async: Failed to record %s %s", method, url, exc_info=True)
 
                     return response
 
@@ -128,6 +128,7 @@ class HttpxAdapter:
                 httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
 
             self._installed = True  # Only reached when sync patch was applied by this instance
+            logger.debug("Patched httpx.Client.request and httpx.AsyncClient.request for HTTP interception")
 
     def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
@@ -138,13 +139,15 @@ class HttpxAdapter:
             if not self._installed:
                 return
 
-            if self._original_request is not None:
+            current_sync = httpx.Client.request
+            if getattr(current_sync, _PATCH_SENTINEL, False) and self._original_request:
                 httpx.Client.request = self._original_request  # type: ignore[method-assign]
-                self._original_request = None
+            self._original_request = None
 
-            if self._original_async_request is not None:
+            current_async = httpx.AsyncClient.request
+            if getattr(current_async, _PATCH_SENTINEL, False) and self._original_async_request:
                 httpx.AsyncClient.request = self._original_async_request  # type: ignore[method-assign]
-                self._original_async_request = None
+            self._original_async_request = None
 
             self._installed = False
 
@@ -210,7 +213,7 @@ def _record_httpx_interaction(
     try:
         body_size = len(response.content)
     except Exception:
-        logger.debug("Failed to record interaction", exc_info=True)
+        logger.debug("httpx: Failed to get response body size", exc_info=True)
 
     # Build response model
     http_response = HTTPResponse(

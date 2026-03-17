@@ -12,7 +12,7 @@ def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> A
     """Create a mock pytest.Config with standard option defaults."""
     defaults: dict[str, Any] = {
         "coverage_spec": None,
-        "coverage_output": "coverage-output",
+        "coverage_output": "api-coverage-report",
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
@@ -156,7 +156,7 @@ def test_spec_name_without_spec_defers_error(tmp_path, mocker):
         "coverage_spec_name": "auth",
         "coverage_spec_api_url": None,
         "coverage_config": None,
-        "coverage_output": "coverage-output",
+        "coverage_output": "api-coverage-report",
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
@@ -196,7 +196,7 @@ def test_spec_name_filters_config_specs(tmp_path, mocker):
         "coverage_spec_name": "auth",
         "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
-        "coverage_output": "coverage-output",
+        "coverage_output": "api-coverage-report",
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
@@ -264,7 +264,7 @@ def test_spec_name_no_match_defers_error(tmp_path, mocker):
         "coverage_spec_name": "nonexistent",
         "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
-        "coverage_output": "coverage-output",
+        "coverage_output": "api-coverage-report",
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
@@ -305,7 +305,7 @@ def test_spec_name_autodiscover_defers_error_without_coverage_spec(tmp_path, moc
         "coverage_spec_name": "svc-b",
         "coverage_spec_api_url": None,
         "coverage_config": None,  # no explicit config — use autodiscovery
-        "coverage_output": "coverage-output",
+        "coverage_output": "api-coverage-report",
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
@@ -341,7 +341,7 @@ def test_top_level_output_dir_applied_from_config_file(tmp_path):
         "coverage_spec_name": None,
         "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
-        "coverage_output": "coverage-output",  # default value
+        "coverage_output": "api-coverage-report",  # default value
         "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,

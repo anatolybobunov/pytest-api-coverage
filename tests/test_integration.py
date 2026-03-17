@@ -6,7 +6,7 @@ These tests demonstrate the complete workflow:
 3. Generate coverage reports in all formats
 4. Verify report contents match expected coverage
 
-Reports are saved to `coverage-output/` for visual inspection.
+Reports are saved to `api-coverage-report/` for visual inspection.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def swagger_spec():
 @pytest.fixture
 def output_dir() -> Path:
     """Output directory for reports."""
-    output = Path(__file__).parent.parent / "coverage-output"
+    output = Path(__file__).parent.parent / "api-coverage-report"
     output.mkdir(parents=True, exist_ok=True)
     return output
 

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCoverage
 from pytest_api_coverage.schemas import SwaggerSpec
 from pytest_api_coverage.utils import normalize_origin
+
+logger = logging.getLogger(__name__)
 
 
 class CoverageReporter:
@@ -45,6 +48,8 @@ class CoverageReporter:
         for endpoint in swagger_spec.endpoints:
             key = f"{endpoint.method}:{endpoint.path}"
             self._path_patterns[key] = self._compile_path_pattern(endpoint.path)
+
+        self.unmatched_count: int = 0
 
         # Coverage storage
         if split_by_origin:
@@ -219,6 +224,8 @@ class CoverageReporter:
             # Find matching endpoint
             endpoint_key = self._match_endpoint_key(method, path)
             if not endpoint_key:
+                self.unmatched_count += 1
+                logger.debug("No endpoint matched for %s %s", method, path)
                 continue
 
             # Record hit
@@ -309,10 +316,12 @@ class CoverageReporter:
 
     def _generate_standard_report(self) -> dict[str, Any]:
         """Generate standard (non-split) coverage report."""
+        summary = self._generate_summary(self._coverage)
+        summary["unmatched_requests"] = self.unmatched_count
         return {
             "swagger_source": self.swagger_spec.source,
             "split_by_origin": False,
-            "summary": self._generate_summary(self._coverage),
+            "summary": summary,
             "endpoints": self._generate_endpoints_list(self._coverage),
         }
 

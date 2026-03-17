@@ -1,6 +1,6 @@
 """Example test that generates coverage reports for demonstration.
 
-Generates: example.html, example.json, example.csv in coverage-output/
+Generates: example.html, example.json, example.csv in api-coverage-report/
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def test_generate_example_reports():
     report_data = reporter.generate_report()
 
     # Output directory
-    output_dir = Path(__file__).parent.parent / "coverage-output"
+    output_dir = Path(__file__).parent.parent / "api-coverage-report"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Write all formats

@@ -79,7 +79,7 @@ class MultiSpecOrchestrator:
         parsed_req = urlparse(request_url)
         parsed_spec = urlparse(spec_url)
 
-        req_origin = f"{parsed_req.scheme}://{parsed_req.netloc}"
+        req_origin = normalize_origin(request_url)
         spec_origin = f"{parsed_spec.scheme}://{parsed_spec.netloc}"
 
         if req_origin != spec_origin:

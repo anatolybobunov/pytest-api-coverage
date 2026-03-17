@@ -27,8 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `coverage-config.yaml` config file for declarative multi-spec setup
 - `MultiSpecOrchestrator` to manage lifecycle of multiple specs and reporters
 - Origin filtering options:
-  - `--coverage-base-url` — filter to a single origin
-  - `--coverage-include-base-url` — allowlist of origins
   - `--coverage-strip-prefix` — strip path prefixes before matching
   - `--coverage-split-by-origin` — produce separate coverage report per origin
 - Terminal summary output with per-spec coverage statistics

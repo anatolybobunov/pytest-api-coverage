@@ -166,7 +166,8 @@ class SwaggerParser:
         elif "swagger" in data:
             return cls._parse_swagger2(data, source)
         else:
-            raise ValueError("Unknown specification format: missing 'swagger' or 'openapi' key")
+            source_info = f" in '{source}'" if source else ""
+            raise ValueError(f"Unknown specification format{source_info}: missing 'swagger' or 'openapi' key")
 
     @classmethod
     def _parse_swagger2(cls, data: dict[str, Any], source: str = "") -> SwaggerSpec:

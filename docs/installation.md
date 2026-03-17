@@ -53,9 +53,19 @@ The plugin automatically installs the following dependencies:
 |---------|---------|---------|
 | pytest | >=7.0.0 | Test framework |
 | pyyaml | >=6.0 | YAML parsing for swagger files |
-| requests | >=2.28.0 | HTTP client interception |
-| httpx | >=0.24.0 | Async HTTP client interception |
+| requests | >=2.28.0 | HTTP interception (optional) |
+| httpx    | >=0.24.0 | Async HTTP interception (optional) |
 | jinja2 | >=3.0.0 | HTML report templating |
+
+> **Note:** `requests` and `httpx` are optional adapters. Install only what your test suite needs:
+>
+> ```bash
+> # Enable requests support
+> pip install pytest-api-coverage[requests]
+>
+> # Enable all adapters
+> pip install pytest-api-coverage[all]
+> ```
 
 ## Build Distribution Packages
 

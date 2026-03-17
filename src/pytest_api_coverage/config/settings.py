@@ -95,7 +95,7 @@ class CoverageSettings:
     """
 
     spec: str | Path | None = None
-    output_dir: Path = field(default_factory=lambda: Path("coverage-output"))
+    output_dir: Path = field(default_factory=lambda: Path("api-coverage-report"))
     formats: set[str] = field(default_factory=lambda: {"html"})
 
     # Path normalization
@@ -135,7 +135,10 @@ class CoverageSettings:
         KNOWN_FORMATS = {"html", "json", "csv", "all"}
         unknown = self.formats - KNOWN_FORMATS
         if unknown:
-            logger.warning("Unknown output formats: %s. Known: %s", unknown, KNOWN_FORMATS - {"all"})
+            self.config_error = (
+                f"Unknown output format(s): {unknown}. "
+                f"Valid formats: {KNOWN_FORMATS - {'all'}}"
+            )
 
     @staticmethod
     def _validate_spec(value: str | Path) -> str | Path:
@@ -159,7 +162,7 @@ class CoverageSettings:
         # Local file path - validate existence
         path = Path(value_str)
         if not path.exists():
-            raise ValueError(f"Swagger file not found: {path}")
+            raise ValueError(f"Swagger file not found: {path.resolve()}")
         return path
 
     @classmethod
@@ -245,7 +248,7 @@ class CoverageSettings:
                     )
 
         # Apply top-level config values; CLI options take precedence over config file.
-        _default_output = "coverage-output"
+        _default_output = "api-coverage-report"
         _default_formats = "html"
         raw_output = config.getoption("coverage_output", _default_output)
         raw_formats = config.getoption("coverage_format", _default_formats)
@@ -281,7 +284,7 @@ class CoverageSettings:
         if spec and not str(spec).startswith(("http://", "https://")):
             spec = Path(spec)
 
-        output_dir = data.get("output_dir", "coverage-output")
+        output_dir = data.get("output_dir", "api-coverage-report")
         if isinstance(output_dir, str):
             output_dir = Path(output_dir)
 

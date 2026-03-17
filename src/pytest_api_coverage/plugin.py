@@ -37,8 +37,8 @@ def pytest_addoption(parser: Parser) -> None:
         "--coverage-output",
         dest="coverage_output",
         type=str,
-        default="coverage-output",
-        help="Directory where coverage report files will be saved. Default: ./coverage-output",
+        default="api-coverage-report",
+        help="Directory where coverage report files will be saved. Default: ./api-coverage-report",
     )
     group.addoption(
         "--coverage-format",
@@ -102,7 +102,6 @@ def pytest_configure(config: Config) -> None:
 
     logger.debug("Registering %s", plugin_class.__name__)
     plugin = plugin_class(config)
-    config._api_coverage_plugin = plugin  # type: ignore[attr-defined]
     config.pluginmanager.register(plugin, "api_coverage_plugin")
 
 
@@ -326,9 +325,9 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
             self.worker_data[worker_id] = node.workeroutput["coverage_data"]  # type: ignore[attr-defined]
         else:
             if error:
-                logger.debug("Worker %s finished with error and no coverage_data: %s", worker_id, error)
+                logger.warning("Worker %s finished with error and no coverage_data: %s", worker_id, error)
             else:
-                logger.debug("Worker %s has no coverage_data attribute", worker_id)
+                logger.warning("Worker %s finished without coverage_data — coverage may be incomplete", worker_id)
 
     @pytest.hookimpl(trylast=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
@@ -377,6 +376,11 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
                 "Check that workers are sending coverage data and that "
                 "mocking libraries are not intercepting at the socket level."
             )
+
+    @pytest.hookimpl
+    def pytest_unconfigure(self, config: Config) -> None:
+        """Unregister master plugin on teardown."""
+        config.pluginmanager.unregister(self)
 
     def _generate_report(self, data: list[dict[str, Any]]) -> None:
         """Generate coverage report from aggregated worker data."""
