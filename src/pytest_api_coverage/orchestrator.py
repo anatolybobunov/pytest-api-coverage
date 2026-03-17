@@ -52,7 +52,7 @@ class MultiSpecOrchestrator:
                 self._reporters[spec.name] = reporter
                 self._specs.append(spec)
             except Exception as e:
-                logger.warning("Failed to load spec '%s': %s", spec.name, e)
+                logger.warning("Failed to load spec '%s': %s", spec.name, e, exc_info=True)
 
     def _warn_overlapping_urls(self) -> None:
         """Check for URL overlap across specs and warn. Uses exact URL string comparison."""

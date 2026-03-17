@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -195,6 +197,32 @@ class TestUnmatchedCounter:
         orch.process_interactions([unknown_interaction, unknown_interaction])
 
         assert orch.unmatched_count == 2
+
+
+class TestSpecLoadExcInfo:
+    def test_failed_spec_load_includes_traceback_in_log(self, tmp_path: Path, caplog) -> None:
+        """When a spec fails to load, exc_info must be present in the log record."""
+        bad_yaml = tmp_path / "bad.yaml"
+        bad_yaml.write_text(": invalid: yaml [unclosed", encoding="utf-8")
+
+        settings = CoverageSettings(
+            specs=[
+                SpecConfig(
+                    name="bad-api",
+                    api_urls=["http://localhost"],
+                    swagger_path=bad_yaml,
+                )
+            ]
+        )
+
+        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+            from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
+            MultiSpecOrchestrator(settings)
+
+        assert any(r.exc_info is not None for r in caplog.records), (
+            "Expected exc_info in log record — add exc_info=True to logger.warning in _load_all_specs"
+        )
 
 
 class TestProcessInteractions:

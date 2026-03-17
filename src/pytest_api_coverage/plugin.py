@@ -187,7 +187,7 @@ class _SwaggerLoadMixin:
             self.swagger_spec = SwaggerParser.parse(self.settings.spec)
         except Exception as e:
             self._swagger_load_error = str(e)
-            logger.warning("Failed to load swagger: %s", e)
+            logger.warning("Failed to load swagger: %s", e, exc_info=True)
 
 
 class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
