@@ -2,6 +2,8 @@
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
+from enum import Enum
 
 from pytest_api_coverage.collector import CoverageCollector, HTTPInterceptor
 
@@ -150,3 +152,67 @@ def test_collector_interaction_to_dict(make_interaction):
     # Verify metadata
     assert data["duration_ms"] == 123.45
     assert "timestamp" in data
+
+
+def _assert_execnet_serializable(obj: object) -> None:
+    """Recursively assert that obj contains only execnet-serializable basic types."""
+    allowed = (str, int, float, bool, bytes, type(None))
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            assert isinstance(k, (str, int)), f"dict key {k!r} is not serializable (type {type(k)})"
+            _assert_execnet_serializable(v)
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            _assert_execnet_serializable(item)
+    else:
+        assert isinstance(obj, allowed), f"value {obj!r} is not serializable (type {type(obj)})"
+
+
+def test_get_data_serializable_with_decimal_body(make_interaction):
+    """get_data() must return execnet-serializable dicts even when body contains Decimal."""
+    collector = CoverageCollector()
+    interaction = make_interaction(
+        method="POST",
+        path="/orders",
+        body={"price": Decimal("19.99"), "quantity": Decimal("3")},
+    )
+    collector.record(interaction)
+
+    data = collector.get_data()
+
+    _assert_execnet_serializable(data)
+
+
+def test_get_data_serializable_with_enum_body(make_interaction):
+    """get_data() must return execnet-serializable dicts even when body contains enums."""
+
+    class TokenResponseFormat(Enum):
+        JSON = "json"
+        BINARY = "binary"
+
+    collector = CoverageCollector()
+    interaction = make_interaction(
+        method="POST",
+        path="/tokens",
+        body={"format": TokenResponseFormat.JSON, "name": "my-token"},
+    )
+    collector.record(interaction)
+
+    data = collector.get_data()
+
+    _assert_execnet_serializable(data)
+
+
+def test_get_data_serializable_with_decimal_query_params(make_interaction):
+    """get_data() must return execnet-serializable dicts even when query_params contain Decimal."""
+    collector = CoverageCollector()
+    interaction = make_interaction(
+        method="GET",
+        path="/prices",
+        query_params={"min_price": Decimal("5.00"), "max_price": Decimal("100.00")},
+    )
+    collector.record(interaction)
+
+    data = collector.get_data()
+
+    _assert_execnet_serializable(data)

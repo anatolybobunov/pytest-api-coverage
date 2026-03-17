@@ -1,11 +1,14 @@
 """HTTPX library adapter using monkeypatch approach."""
 
+import logging
 import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger("pytest_api_coverage")
 
 try:
     import httpx
@@ -74,7 +77,7 @@ class HttpxAdapter:
                         duration_ms=duration_ms,
                     )
                 except Exception:
-                    pass  # Never let coverage tracking break tests
+                    logger.debug("Failed to record interaction", exc_info=True)
 
                 return response
 
@@ -107,7 +110,7 @@ class HttpxAdapter:
                         duration_ms=duration_ms,
                     )
                 except Exception:
-                    pass  # Never let coverage tracking break tests
+                    logger.debug("Failed to record interaction", exc_info=True)
 
                 return response
 
@@ -196,7 +199,7 @@ def _record_httpx_interaction(
     try:
         body_size = len(response.content)
     except Exception:
-        pass
+        logger.debug("Failed to record interaction", exc_info=True)
 
     # Build response model
     http_response = HTTPResponse(

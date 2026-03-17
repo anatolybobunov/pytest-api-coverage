@@ -1,10 +1,15 @@
 """Thread-safe collector for HTTP interactions."""
 
+import decimal
+import logging
 import threading
+from enum import Enum
 from queue import Empty, Queue
 from typing import Any, Protocol, runtime_checkable
 
 from pytest_api_coverage.models import HTTPInteraction
+
+logger = logging.getLogger("pytest_api_coverage")
 
 
 @runtime_checkable
@@ -65,7 +70,9 @@ class CoverageCollector:
         """Return all collected data as serializable dicts."""
         self._drain_queue()
         with self._lock:
-            return [self._interaction_to_dict(i) for i in self._data]
+            data = [self._interaction_to_dict(i) for i in self._data]
+        logger.debug("Collected %d interactions", len(data))
+        return data
 
     def clear(self) -> None:
         """Clear all collected data."""
@@ -83,6 +90,22 @@ class CoverageCollector:
                 except Empty:
                     break
 
+    @staticmethod
+    def _make_serializable(value: Any) -> Any:
+        """Recursively convert value to execnet-serializable basic Python types."""
+        if isinstance(value, dict):
+            return {k: CoverageCollector._make_serializable(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [CoverageCollector._make_serializable(item) for item in value]
+        if isinstance(value, (str, int, float, bool, bytes, type(None))):
+            return value
+        # Decimal → float, enums → their value, anything else → str
+        if isinstance(value, decimal.Decimal):
+            return float(value)
+        if isinstance(value, Enum):
+            return CoverageCollector._make_serializable(value.value)
+        return str(value)
+
     def _interaction_to_dict(self, interaction: HTTPInteraction) -> dict[str, Any]:
         """Convert interaction to serializable dict."""
         return {
@@ -92,8 +115,8 @@ class CoverageCollector:
                 "path": interaction.request.path,
                 "host": interaction.request.host,
                 "headers": dict(interaction.request.headers),
-                "query_params": dict(interaction.request.query_params),
-                "body": interaction.request.body,
+                "query_params": self._make_serializable(dict(interaction.request.query_params)),
+                "body": self._make_serializable(interaction.request.body),
                 "content_type": interaction.request.content_type,
             },
             "response": {

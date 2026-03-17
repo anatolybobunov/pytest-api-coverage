@@ -63,8 +63,8 @@ def test_two_specs_produce_separate_files(pytester: pytest.Pytester) -> None:
     result.assert_outcomes(passed=1)
 
     out = pytester.path / "out"
-    assert (out / "auth-coverage.json").exists(), "auth-coverage.json missing"
-    assert (out / "orders-coverage.json").exists(), "orders-coverage.json missing"
+    assert (out / "auth-coverage.html").exists(), "auth-coverage.html missing"
+    assert (out / "orders-coverage.html").exists(), "orders-coverage.html missing"
 
 
 def test_request_to_unknown_url_no_error(pytester: pytest.Pytester) -> None:
@@ -123,4 +123,4 @@ def test_zero_matched_requests_writes_files(pytester: pytest.Pytester) -> None:
     result = pytester.runpytest("--coverage-config=coverage-config.yaml", "--coverage-output=out")
     result.assert_outcomes(passed=1)
     out = pytester.path / "out"
-    assert (out / "auth-coverage.json").exists(), "auth-coverage.json must exist even with 0 requests"
+    assert (out / "auth-coverage.html").exists(), "auth-coverage.html must exist even with 0 requests"

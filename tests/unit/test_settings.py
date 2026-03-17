@@ -13,7 +13,7 @@ def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> A
     defaults: dict[str, Any] = {
         "coverage_spec": None,
         "coverage_output": "coverage-output",
-        "coverage_format": "json,csv,html",
+        "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
         "coverage_config": None,
@@ -132,7 +132,7 @@ class TestFromPytestConfig:
         assert settings.specs == []
 
     def test_from_pytest_config_api_url_none_exits(self, mocker: Any) -> None:
-        """coverage_spec_api_url=None with a spec name must call pytest.exit() (SystemExit)."""
+        """coverage_spec_api_url=None with a spec name must raise pytest.UsageError."""
         import pytest
 
         mock_config = _make_mock_config(
@@ -143,41 +143,146 @@ class TestFromPytestConfig:
                 "coverage_spec_api_url": None,
             },
         )
-        exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
-        with pytest.raises(SystemExit):
+        with pytest.raises(pytest.UsageError, match="--coverage-spec-name requires --coverage-spec-api-url"):
             CoverageSettings.from_pytest_config(mock_config)
-        exit_mock.assert_called_once_with(
-            "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url",
-            returncode=1,
-        )
 
 
 def test_spec_name_without_spec_exits(tmp_path, mocker):
-    """Missing --coverage-spec with --coverage-spec-name must call pytest.exit() (SystemExit)."""
+    """--coverage-spec-name with no config file and no --coverage-spec exits with 'no spec found'."""
     from unittest.mock import MagicMock
 
     import pytest
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
-        "coverage_spec": None,  # no spec
-        "coverage_spec_name": "auth",  # name without spec
-        "coverage_spec_api_url": ["https://api.example.com"],
+        "coverage_spec": None,
+        "coverage_spec_name": "auth",
+        "coverage_spec_api_url": None,
         "coverage_config": None,
         "coverage_output": "coverage-output",
-        "coverage_format": "json,csv,html",
+        "coverage_format": "html",
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path  # tmp_path has no config file to discover
+
+    with pytest.raises(pytest.UsageError, match="No spec named 'auth' found in config"):
+        CoverageSettings.from_pytest_config(config)
+
+
+def test_spec_name_filters_config_specs(tmp_path, mocker):
+    """--coverage-spec-name filters specs from config file, returning only the matched spec."""
+    from unittest.mock import MagicMock
+
+    spec_file_auth = tmp_path / "auth.yaml"
+    spec_file_auth.write_text("openapi: '3.0.0'")
+    spec_file_orders = tmp_path / "orders.yaml"
+    spec_file_orders.write_text("openapi: '3.0.0'")
+
+    config_file = tmp_path / "coverage-config.yaml"
+    config_file.write_text(
+        f"specs:\n"
+        f"  - name: auth\n"
+        f"    api_urls:\n"
+        f"      - https://auth.example.com\n"
+        f"    swagger_path: {spec_file_auth}\n"
+        f"  - name: orders\n"
+        f"    api_urls:\n"
+        f"      - https://orders.example.com\n"
+        f"    swagger_path: {spec_file_orders}\n"
+    )
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "coverage_spec": None,
+        "coverage_spec_name": "auth",
+        "coverage_spec_api_url": None,
+        "coverage_config": str(config_file),
+        "coverage_output": "coverage-output",
+        "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)
     config.rootpath = tmp_path
 
-    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
-    with pytest.raises(SystemExit):
-        CoverageSettings.from_pytest_config(config)
-    exit_mock.assert_called_once_with(
-        "[api-coverage] --coverage-spec-name requires --coverage-spec",
-        returncode=1,
+    settings = CoverageSettings.from_pytest_config(config)
+    assert len(settings.specs) == 1
+    assert settings.specs[0].name == "auth"
+
+
+def test_spec_name_no_match_exits(tmp_path, mocker):
+    """--coverage-spec-name with no matching spec exits with available spec names listed."""
+    from unittest.mock import MagicMock
+
+    import pytest
+
+    spec_file = tmp_path / "auth.yaml"
+    spec_file.write_text("openapi: '3.0.0'")
+    config_file = tmp_path / "coverage-config.yaml"
+    config_file.write_text(
+        f"specs:\n"
+        f"  - name: auth\n"
+        f"    api_urls:\n"
+        f"      - https://auth.example.com\n"
+        f"    swagger_path: {spec_file}\n"
     )
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "coverage_spec": None,
+        "coverage_spec_name": "nonexistent",
+        "coverage_spec_api_url": None,
+        "coverage_config": str(config_file),
+        "coverage_output": "coverage-output",
+        "coverage_format": "html",
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    with pytest.raises(pytest.UsageError, match="No spec named 'nonexistent' found in config"):
+        CoverageSettings.from_pytest_config(config)
+
+
+def test_spec_name_autodiscover_and_filter(tmp_path, mocker):
+    """Auto-discovered config + --coverage-spec-name filters to the matching spec."""
+    from unittest.mock import MagicMock
+
+    spec_file_a = tmp_path / "a.yaml"
+    spec_file_a.write_text("openapi: '3.0.0'")
+    spec_file_b = tmp_path / "b.yaml"
+    spec_file_b.write_text("openapi: '3.0.0'")
+
+    # Place the config file where auto-discovery will find it
+    config_file = tmp_path / "coverage-config.yaml"
+    config_file.write_text(
+        f"specs:\n"
+        f"  - name: svc-a\n"
+        f"    api_urls:\n"
+        f"      - https://a.example.com\n"
+        f"    swagger_path: {spec_file_a}\n"
+        f"  - name: svc-b\n"
+        f"    api_urls:\n"
+        f"      - https://b.example.com\n"
+        f"    swagger_path: {spec_file_b}\n"
+    )
+
+    config = MagicMock()
+    config.getoption.side_effect = lambda key, default=None: {
+        "coverage_spec": None,
+        "coverage_spec_name": "svc-b",
+        "coverage_spec_api_url": None,
+        "coverage_config": None,  # no explicit config — use autodiscovery
+        "coverage_output": "coverage-output",
+        "coverage_format": "html",
+        "coverage_strip_prefix": None,
+        "coverage_split_by_origin": False,
+    }.get(key, default)
+    config.rootpath = tmp_path
+
+    settings = CoverageSettings.from_pytest_config(config)
+    assert len(settings.specs) == 1
+    assert settings.specs[0].name == "svc-b"
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):
@@ -205,7 +310,7 @@ def test_top_level_output_dir_applied_from_config_file(tmp_path):
         "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
         "coverage_output": "coverage-output",  # default value
-        "coverage_format": "json,csv,html",
+        "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)
@@ -230,7 +335,7 @@ def test_cli_output_dir_overrides_config_file(tmp_path):
         "coverage_spec_api_url": None,
         "coverage_config": str(config_file),
         "coverage_output": "from-cli",  # explicit CLI value
-        "coverage_format": "json,csv,html",
+        "coverage_format": "html",
         "coverage_strip_prefix": None,
         "coverage_split_by_origin": False,
     }.get(key, default)

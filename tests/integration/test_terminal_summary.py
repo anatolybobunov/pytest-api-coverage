@@ -139,6 +139,7 @@ def test_coverage_spec_compat(pytester: pytest.Pytester) -> None:
     result = pytester.runpytest(
         "--coverage-spec=spec.yaml",
         "--coverage-output=out",
+        "--coverage-format=all",
     )
     result.assert_outcomes(passed=1)
 
@@ -218,7 +219,7 @@ def test_swagger_load_failure_shown_in_terminal_summary():
 
 
 def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
-    """Multi-spec run with -n 2 (xdist) produces auth-coverage.json and orders-coverage.html."""
+    """Multi-spec run with -n 2 (xdist) produces auth-coverage.html and orders-coverage.html."""
     _write_two_spec_config(pytester)
 
     pytester.makepyfile("""
@@ -235,8 +236,8 @@ def test_xdist_multi_spec_produces_files(pytester: pytest.Pytester) -> None:
     result.assert_outcomes(passed=1)
 
     out = pytester.path / "out"
-    assert (out / "auth-coverage.json").exists(), "auth-coverage.json must exist"
-    assert (out / "auth-coverage.json").stat().st_size > 0, "auth-coverage.json must be non-empty"
+    assert (out / "auth-coverage.html").exists(), "auth-coverage.html must exist"
+    assert (out / "auth-coverage.html").stat().st_size > 0, "auth-coverage.html must be non-empty"
     assert (out / "orders-coverage.html").exists(), "orders-coverage.html must exist"
     assert (out / "orders-coverage.html").stat().st_size > 0, "orders-coverage.html must be non-empty"
 

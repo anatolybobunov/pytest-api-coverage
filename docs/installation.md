@@ -78,13 +78,13 @@ Artifacts are placed in the `dist/` directory.
 After installation, verify the plugin is available:
 
 ```bash
-pytest --help | grep swagger
+pytest --help | grep coverage-spec
 ```
 
 You should see:
 
 ```
---swagger=SWAGGER     Path to swagger.json/yaml file or URL to swagger spec
+--coverage-spec=COVERAGE_SPEC  #  Path or URL to OpenAPI/Swagger spec
 ```
 
 ## Optional: pytest-xdist
@@ -98,5 +98,5 @@ pip install pytest-xdist
 Then run tests with:
 
 ```bash
-pytest tests/ -n 4 --swagger=swagger.json
+pytest tests/ -n 4 --coverage-spec=swagger.json
 ```

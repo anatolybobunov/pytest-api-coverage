@@ -31,56 +31,56 @@ def pytest_addoption(parser: Parser) -> None:
         dest="coverage_spec",
         type=str,
         default=None,
-        help="Path or URL to OpenAPI spec (swagger.json/yaml or remote URL)",
+        help="Path to a local OpenAPI/Swagger spec file (JSON/YAML) or a remote URL. Enables API coverage tracking for the given specification.",
     )
     group.addoption(
         "--coverage-output",
         dest="coverage_output",
         type=str,
         default="coverage-output",
-        help="Output directory for coverage reports",
+        help="Directory where coverage report files will be saved. Default: ./coverage-output",
     )
     group.addoption(
         "--coverage-format",
         dest="coverage_format",
         type=str,
-        default="json,csv,html",
-        help="Report formats (comma-separated): json,csv,html",
+        default="html",
+        help="Comma-separated list of report formats to generate. Supported formats: json, csv, html, all. 'all' expands to all supported formats. Default: html",
     )
     group.addoption(
         "--coverage-strip-prefix",
         dest="coverage_strip_prefix",
         type=str,
         default=None,
-        help="Additional path prefixes to strip (comma-separated). Example: /v1,/api/v2",
+        help="Comma-separated path prefixes to strip from request URLs before matching against the spec. Useful when the API is served under a base path not present in the spec. Example: /v1,/api/v2",
     )
     group.addoption(
         "--coverage-split-by-origin",
         dest="coverage_split_by_origin",
         action="store_true",
         default=False,
-        help="Generate separate coverage buckets per origin in reports",
+        help="When enabled, coverage statistics are grouped separately for each unique API origin (host:port) found in recorded requests.",
     )
     group.addoption(
         "--coverage-config",
         dest="coverage_config",
         type=str,
         default=None,
-        help="Path to api-coverage config file (YAML/JSON) for multi-spec configuration",
+        help="Path to an api-coverage configuration file (YAML or JSON) that defines multiple specs, their API URLs, and shared settings. See documentation for the config file format.",
     )
     group.addoption(
         "--coverage-spec-name",
         dest="coverage_spec_name",
         type=str,
         default=None,
-        help="Name for the spec (used with --coverage-spec and --coverage-spec-api-url)",
+        help="Label for a single CLI spec, or filter name to select a spec from the config file.",
     )
     group.addoption(
         "--coverage-spec-api-url",
         dest="coverage_spec_api_url",
         action="append",
         default=None,
-        help="API base URL(s) for the spec (repeatable). Example: --coverage-spec-api-url https://api.example.com",
+        help="Base URL of the API server to match requests against. Can be specified multiple times for multiple environments. Requires --coverage-spec. Example: --coverage-spec-api-url https://api.example.com",
     )
 
 
@@ -92,14 +92,16 @@ def pytest_configure(config: Config) -> None:
     # Determine execution mode
     if hasattr(config, "workerinput"):
         # Worker node in xdist
-        plugin = CoverageWorkerPlugin(config)
+        plugin_class = CoverageWorkerPlugin
     elif _is_xdist_master(config):
         # Master node with active xdist workers
-        plugin = CoverageMasterPlugin(config)
+        plugin_class = CoverageMasterPlugin
     else:
         # Single process mode
-        plugin = CoverageSinglePlugin(config)
+        plugin_class = CoverageSinglePlugin
 
+    logger.debug("Registering %s", plugin_class.__name__)
+    plugin = plugin_class(config)
     config._api_coverage_plugin = plugin  # type: ignore[attr-defined]
     config.pluginmanager.register(plugin, "api_coverage_plugin")
 
@@ -120,17 +122,21 @@ def _build_activity_line(settings: CoverageSettings) -> str | None:
     return None
 
 
-def _is_xdist_master(config: Config) -> bool:
+def _is_xdist_master(config: pytest.Config) -> bool:
     """Check if we're running as xdist master with active workers.
 
     Returns True only if:
     - xdist plugin is available
-    - -n option was specified with value > 0
+    - -n option was specified with value > 0, or set to "auto"
     """
     if not config.pluginmanager.hasplugin("xdist"):
         return False
     numprocesses = getattr(config.option, "numprocesses", None)
-    return numprocesses is not None and numprocesses > 0
+    if numprocesses is None:
+        return False
+    if isinstance(numprocesses, str):  # e.g. "auto"
+        return True
+    return numprocesses > 0
 
 
 class _InterceptionMixin:
@@ -217,7 +223,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
             if line is not None:
                 tr.write_line(line)
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Generate coverage reports at session end."""
         if self.settings.specs and self.orchestrator:
@@ -229,7 +235,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
             else:
                 self._no_requests_captured = True
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
         if self.orchestrator:
@@ -284,15 +290,13 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         self._swagger_load_error: str | None = None
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
-
-        # Load swagger on master
-        self._load_swagger()
         if self.settings.specs:
             self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
-        """Log plugin activity at session start."""
+        """Load swagger and log plugin activity at session start."""
+        self._load_swagger()
         tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
         if tr is None:
             return
@@ -308,11 +312,19 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
     @pytest.hookimpl
     def pytest_testnodedown(self, node: object, error: object) -> None:
         """Collect coverage data from finished worker."""
-        worker_id = node.gateway.id  # type: ignore[attr-defined]
+        if hasattr(node, "gateway") and node.gateway:  # type: ignore[attr-defined]
+            worker_id = node.gateway.id  # type: ignore[attr-defined]
+        else:
+            worker_id = str(node)
         if hasattr(node, "workeroutput") and "coverage_data" in node.workeroutput:  # type: ignore[attr-defined]
             self.worker_data[worker_id] = node.workeroutput["coverage_data"]  # type: ignore[attr-defined]
+        else:
+            if error:
+                logger.debug("Worker %s finished with error and no coverage_data: %s", worker_id, error)
+            else:
+                logger.debug("Worker %s has no coverage_data attribute", worker_id)
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Aggregate worker data and generate reports."""
         if self.settings.specs and self.orchestrator:
@@ -340,7 +352,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
             if all_data and self.swagger_spec:
                 self._generate_report(all_data)
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
         if self.orchestrator:
@@ -351,6 +363,12 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
                 f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+            )
+        elif self.swagger_spec and not self.worker_data:
+            logger.warning(
+                "[api-coverage] 0 HTTP requests captured from workers. "
+                "Check that workers are sending coverage data and that "
+                "mocking libraries are not intercepting at the socket level."
             )
 
     def _generate_report(self, data: list[dict[str, Any]]) -> None:

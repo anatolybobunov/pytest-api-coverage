@@ -1,11 +1,14 @@
 """Requests library adapter using monkeypatch approach."""
 
+import logging
 import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger("pytest_api_coverage")
 
 import requests
 import requests.sessions
@@ -61,7 +64,7 @@ class RequestsAdapter:
                         duration_ms=duration_ms,
                     )
                 except Exception:
-                    pass  # Never let coverage tracking break tests
+                    logger.debug("Failed to record interaction", exc_info=True)
 
                 return response
 

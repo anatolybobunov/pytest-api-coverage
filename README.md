@@ -33,14 +33,14 @@ See [docs/installation.md](docs/installation.md) for detailed installation instr
 ## Quick Start
 
 ```bash
-# Basic usage with local swagger file
-pytest tests/ --swagger=swagger.json
+# Basic usage with local spec file
+pytest tests/ --coverage-spec=swagger.json
 
-# Using swagger URL
-pytest tests/ --swagger=https://api.example.com/swagger.json
+# Using remote spec URL
+pytest tests/ --coverage-spec=https://api.example.com/swagger.json
 
 # With parallel execution
-pytest tests/ -n 4 --swagger=swagger.json
+pytest tests/ -n 4 --coverage-spec=swagger.json
 ```
 
 ## How It Works
@@ -57,18 +57,14 @@ pytest tests/ -n 4 --swagger=swagger.json
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--swagger` | — | Path to swagger.json/yaml file or URL (single-spec mode) |
+| `--coverage-spec` | — | Path to a local OpenAPI/Swagger spec file or URL |
+| `--coverage-spec-name` | — | Label for the spec; used as filename prefix in reports |
+| `--coverage-spec-api-url` | — | Base URL(s) to match requests against (repeatable) |
 | `--coverage-config` | — | Path to YAML/JSON config file for multi-spec mode |
-| `--coverage-spec-name` | — | Name label for a single spec |
-| `--coverage-spec-path` | — | Local file path to an OpenAPI spec (single-spec CLI mode) |
-| `--coverage-spec-url` | — | Remote URL of an OpenAPI spec (single-spec CLI mode) |
-| `--coverage-spec-base-url` | — | Base URL(s) for the spec (repeatable) |
 | `--coverage-output` | `coverage-output` | Output directory for reports |
-| `--coverage-format` | `json,csv,html` | Report formats (comma-separated) |
-| `--coverage-base-url` | — | Filter to single base URL |
-| `--coverage-include-base-url` | — | Allowlist of base URLs (comma-separated) |
-| `--coverage-strip-prefix` | — | Path prefixes to strip (comma-separated) |
-| `--coverage-split-by-origin` | `false` | Separate coverage per origin |
+| `--coverage-format` | `html` | Report formats (comma-separated). Use `all` for json,csv,html |
+| `--coverage-strip-prefix` | — | Path prefixes to strip from request URLs (comma-separated) |
+| `--coverage-split-by-origin` | `false` | Separate coverage per API origin |
 
 See [docs/usage.md](docs/usage.md) for detailed usage examples.
 

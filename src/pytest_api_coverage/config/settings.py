@@ -12,6 +12,8 @@ import pytest
 # Module-level logger — placed after all imports to satisfy E402
 logger = logging.getLogger("pytest_api_coverage")
 
+VALID_FORMATS = {"json", "csv", "html"}
+
 
 @dataclass
 class SpecConfig:
@@ -94,7 +96,7 @@ class CoverageSettings:
 
     spec: str | Path | None = None
     output_dir: Path = field(default_factory=lambda: Path("coverage-output"))
-    formats: set[str] = field(default_factory=lambda: {"json", "csv", "html"})
+    formats: set[str] = field(default_factory=lambda: {"html"})
 
     # Path normalization
     strip_prefixes: list[str] = field(default_factory=list)  # Manual prefixes to strip
@@ -120,10 +122,17 @@ class CoverageSettings:
             self.formats = {f.strip().lower() for f in self.formats.split(",")}
         elif isinstance(self.formats, list | tuple):
             self.formats = set(self.formats)
+        if "all" in self.formats:
+            self.formats = set(VALID_FORMATS)
 
         # Parse strip_prefixes if string
         if isinstance(self.strip_prefixes, str):
             self.strip_prefixes = [p.strip() for p in self.strip_prefixes.split(",") if p.strip()]
+
+        KNOWN_FORMATS = {"html", "json", "csv", "all"}
+        unknown = self.formats - KNOWN_FORMATS
+        if unknown:
+            logger.warning("Unknown output formats: %s. Known: %s", unknown, KNOWN_FORMATS - {"all"})
 
     @staticmethod
     def _validate_spec(value: str | Path) -> str | Path:
@@ -172,9 +181,8 @@ class CoverageSettings:
         if coverage_spec and spec_name:
             # --coverage-spec with --coverage-spec-name → multi-spec mode via CLI
             if not spec_api_urls:
-                pytest.exit(
-                    "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url",
-                    returncode=1,
+                raise pytest.UsageError(
+                    "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url"
                 )
             else:
                 spec_value = str(coverage_spec)
@@ -193,11 +201,6 @@ class CoverageSettings:
                     )
                 ]
                 coverage_spec = None  # Use multi-spec path
-        elif spec_name and not coverage_spec:
-            pytest.exit(
-                "[api-coverage] --coverage-spec-name requires --coverage-spec",
-                returncode=1,
-            )
         elif coverage_spec is None:
             from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
                 _discover_config_file,
@@ -209,9 +212,8 @@ class CoverageSettings:
             if explicit_config:
                 config_path = Path(explicit_config)
                 if not config_path.exists():
-                    pytest.exit(
-                        f"[api-coverage] Config file not found: {config_path}",
-                        returncode=1,
+                    raise pytest.UsageError(
+                        f"[api-coverage] Config file not found: {config_path}"
                     )
                 specs, top_level = load_multi_spec_config(config_path)
             else:
@@ -219,17 +221,31 @@ class CoverageSettings:
                 if discovered:
                     specs, top_level = load_multi_spec_config(discovered)
 
+            if spec_name:
+                if spec_api_urls:
+                    logger.warning(
+                        "--coverage-spec-api-url is ignored when filtering "
+                        "a config file by --coverage-spec-name"
+                    )
+                matched = [s for s in specs if s.name == spec_name]
+                if not matched:
+                    available = ", ".join(repr(s.name) for s in specs) or "(none)"
+                    raise pytest.UsageError(
+                        f"[api-coverage] No spec named '{spec_name}' found in config. "
+                        f"Available specs: {available}"
+                    )
+                specs = matched
+
             # Validate that each spec's path exists on disk
             for spec in specs:
                 if spec.swagger_path and not Path(str(spec.swagger_path)).exists():
-                    pytest.exit(
-                        f"[api-coverage] Spec file not found: {spec.swagger_path} (spec: '{spec.name}')",
-                        returncode=1,
+                    raise pytest.UsageError(
+                        f"[api-coverage] Spec file not found: {spec.swagger_path} (spec: '{spec.name}')"
                     )
 
         # Apply top-level config values; CLI options take precedence over config file.
         _default_output = "coverage-output"
-        _default_formats = "json,csv,html"
+        _default_formats = "html"
         raw_output = config.getoption("coverage_output", _default_output)
         raw_formats = config.getoption("coverage_format", _default_formats)
 
@@ -268,11 +284,11 @@ class CoverageSettings:
         if isinstance(output_dir, str):
             output_dir = Path(output_dir)
 
-        raw_formats = data.get("formats", {"json", "csv", "html"})
+        raw_formats = data.get("formats", {"html"})
         if isinstance(raw_formats, (list, set)):
             formats: set[str] = {str(f) for f in raw_formats}
         else:
-            formats = {"json", "csv", "html"}
+            formats = {"html"}
 
         specs = [SpecConfig.from_dict(s) for s in data.get("specs", [])]
 

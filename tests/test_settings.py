@@ -16,7 +16,7 @@ class TestCoverageSettingsInit:
 
         assert settings.spec is None
         assert settings.output_dir == Path("coverage-output")
-        assert settings.formats == {"json", "csv", "html"}
+        assert settings.formats == {"html"}
         assert settings.strip_prefixes == []
         assert settings.split_by_origin is False
 
@@ -65,6 +65,18 @@ class TestCoverageSettingsInit:
         settings = CoverageSettings(formats=("json",))
 
         assert settings.formats == {"json"}
+
+    def test_formats_all_keyword(self):
+        """Test 'all' keyword expands to all supported formats."""
+        settings = CoverageSettings(formats="all")
+
+        assert settings.formats == {"json", "csv", "html"}
+
+    def test_formats_all_keyword_in_list(self):
+        """Test 'all' keyword in list expands to all supported formats."""
+        settings = CoverageSettings(formats=["all"])
+
+        assert settings.formats == {"json", "csv", "html"}
 
     def test_output_dir_from_string(self):
         """Test output_dir conversion from string."""
@@ -134,7 +146,7 @@ class TestCoverageSettingsFromDict:
         settings = CoverageSettings.from_dict({})
 
         assert settings.spec is None
-        assert settings.formats == {"json", "csv", "html"}
+        assert settings.formats == {"html"}
 
     def test_from_dict_none_spec(self):
         """Test from_dict with None spec value."""
@@ -298,7 +310,7 @@ class TestCoverageSettingsFromPytestConfig:
         mock_config.getoption.side_effect = lambda key, default=None: {
             "coverage_spec": None,
             "coverage_output": "coverage-output",
-            "coverage_format": "json,csv,html",
+            "coverage_format": "html",
             "coverage_strip_prefix": None,
             "coverage_split_by_origin": False,
             "coverage_config": None,
@@ -312,7 +324,7 @@ class TestCoverageSettingsFromPytestConfig:
 
         assert settings.spec is None
         assert settings.output_dir == Path("coverage-output")
-        assert settings.formats == {"json", "csv", "html"}
+        assert settings.formats == {"html"}
         assert settings.is_enabled() is False
 
     def test_from_pytest_config_with_strip_prefix(self, mocker):

@@ -55,19 +55,20 @@ class MultiSpecOrchestrator:
                 logger.warning("Failed to load spec '%s': %s", spec.name, e)
 
     def _warn_overlapping_urls(self) -> None:
-        """Check for URL overlap across specs and warn. Uses exact URL string comparison."""
+        """Check for URL overlap across specs and warn. Uses normalized origin for comparison."""
         seen: dict[str, str] = {}
         for spec in self._specs:
             for url in spec.api_urls:
-                if url in seen:
+                normalized = normalize_origin(url)
+                if normalized in seen:
                     logger.warning(
                         "URL '%s' appears in both '%s' and '%s' specs. First-match-wins applies.",
-                        url,
-                        seen[url],
+                        normalized,
+                        seen[normalized],
                         spec.name,
                     )
                 else:
-                    seen[url] = spec.name
+                    seen[normalized] = spec.name
 
     def _matches_spec(self, request_url: str, spec_url: str) -> bool:
         """Check if request_url matches spec_url (origin + path prefix).

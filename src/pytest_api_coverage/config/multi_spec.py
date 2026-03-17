@@ -27,7 +27,7 @@ def load_multi_spec_config(path: Path) -> tuple[list[SpecConfig], dict[str, Any]
         else:
             raw = json.loads(text)
     except Exception as e:
-        logger.warning("Failed to load config %s: %s", path, e)
+        logger.warning("Failed to load config %s: %s", path, e, exc_info=True)
         return [], {}
 
     if not isinstance(raw, dict):
@@ -38,19 +38,19 @@ def load_multi_spec_config(path: Path) -> tuple[list[SpecConfig], dict[str, Any]
     entries = raw.get("specs") or []
     specs: list[SpecConfig] = []
 
-    for entry in entries:
-        spec = _parse_spec_entry(entry)
+    for index, entry in enumerate(entries):
+        spec = _parse_spec_entry(entry, index)
         if spec is not None:
             specs.append(spec)
 
     return specs, top_level
 
 
-def _parse_spec_entry(entry: dict[str, Any]) -> SpecConfig | None:
+def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     """Parse a single spec entry dict. Returns None and warns on validation failure."""
     name = entry.get("name")
     if not name:
-        logger.warning("Spec entry missing 'name', skipping")
+        logger.warning("Spec entry #%d missing 'name', skipping", index)
         return None
     api_urls = entry.get("api_urls")
     if not api_urls:

@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import httpx
+try:
+    import httpx
+except ImportError:
+    httpx = None  # type: ignore[assignment]
 import yaml
 
 
@@ -113,6 +116,10 @@ class SwaggerParser:
         Returns:
             SwaggerSpec: Parsed specification
         """
+        if httpx is None:
+            raise ImportError(
+                "httpx is required to fetch remote specs. Install it: pip install httpx"
+            )
         with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
             response = client.get(url)
             response.raise_for_status()
