@@ -356,6 +356,13 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
             terminalreporter.write_line(
                 f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
             )
+        elif self.swagger_spec and not self.worker_data:
+            terminalreporter.write_sep("=", "API Coverage Summary")
+            terminalreporter.write_line(
+                "[api-coverage] 0 HTTP requests captured from workers. "
+                "Check that workers are sending coverage data and that "
+                "mocking libraries are not intercepting at the socket level."
+            )
 
     def _generate_report(self, data: list[dict[str, Any]]) -> None:
         """Generate coverage report from aggregated worker data."""
