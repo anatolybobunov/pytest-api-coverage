@@ -144,14 +144,14 @@ class _InterceptionMixin:
     collector: CoverageCollector
     _adapters: list[Any]
 
-    @pytest.hookimpl
+    @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item: Item) -> None:
-        """Set current test name before test runs."""
+        """Set current test name before any other plugin's setup runs."""
         self.collector.set_current_test(item.nodeid)
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: Item) -> None:
-        """Clear current test name after test completes."""
+        """Clear current test name after all other plugins' teardown completes."""
         self.collector.set_current_test(None)
 
     def _setup_http_interception(self) -> None:
