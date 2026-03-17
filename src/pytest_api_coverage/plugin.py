@@ -203,13 +203,15 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         self._no_requests_captured: bool = False
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
-        if self.settings.specs:
-            self.orchestrator = MultiSpecOrchestrator(self.settings)
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception at session start."""
+        # Load all specs BEFORE installing HTTP adapters so that any remote spec
+        # fetches (httpx.Client) are not intercepted and recorded as coverage data.
         self._load_swagger()
+        if self.settings.specs:
+            self.orchestrator = MultiSpecOrchestrator(self.settings)
         self._setup_http_interception()
         tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
         if tr is not None:
@@ -285,14 +287,14 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
 
-        # Load swagger on master
+    @pytest.hookimpl
+    def pytest_sessionstart(self, session: Session) -> None:
+        """Load swagger and log plugin activity at session start."""
+        # Initialize orchestrator here (not in __init__) to ensure spec fetches
+        # happen before HTTP adapters are installed.
         self._load_swagger()
         if self.settings.specs:
             self.orchestrator = MultiSpecOrchestrator(self.settings)
-
-    @pytest.hookimpl
-    def pytest_sessionstart(self, session: Session) -> None:
-        """Log plugin activity at session start."""
         tr: TerminalReporter | None = session.config.pluginmanager.get_plugin("terminalreporter")
         if tr is None:
             return
