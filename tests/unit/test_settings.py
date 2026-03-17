@@ -131,10 +131,8 @@ class TestFromPytestConfig:
         settings = CoverageSettings.from_pytest_config(mock_config)
         assert settings.specs == []
 
-    def test_from_pytest_config_api_url_none_exits(self, mocker: Any) -> None:
-        """coverage_spec_api_url=None with a spec name must call pytest.exit() (SystemExit)."""
-        import pytest
-
+    def test_from_pytest_config_api_url_none_defers_error(self, mocker: Any) -> None:
+        """coverage_spec_api_url=None with a spec name must defer the error, not exit immediately."""
         mock_config = _make_mock_config(
             mocker,
             {
@@ -143,20 +141,14 @@ class TestFromPytestConfig:
                 "coverage_spec_api_url": None,
             },
         )
-        exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
-        with pytest.raises(SystemExit):
-            CoverageSettings.from_pytest_config(mock_config)
-        exit_mock.assert_called_once_with(
-            "[api-coverage] --coverage-spec-name requires --coverage-spec-api-url",
-            returncode=1,
-        )
+        settings = CoverageSettings.from_pytest_config(mock_config)
+        assert settings.config_error is not None
+        assert "--coverage-spec-api-url" in settings.config_error
 
 
-def test_spec_name_without_spec_exits(tmp_path, mocker):
-    """Missing --coverage-spec with --coverage-spec-name must call pytest.exit() (SystemExit)."""
+def test_spec_name_without_spec_defers_error(tmp_path, mocker):
+    """Missing --coverage-spec with --coverage-spec-name must defer the error, not exit immediately."""
     from unittest.mock import MagicMock
-
-    import pytest
 
     config = MagicMock()
     config.getoption.side_effect = lambda key, default=None: {
@@ -171,13 +163,44 @@ def test_spec_name_without_spec_exits(tmp_path, mocker):
     }.get(key, default)
     config.rootpath = tmp_path
 
-    exit_mock = mocker.patch("pytest.exit", side_effect=SystemExit(1))
-    with pytest.raises(SystemExit):
-        CoverageSettings.from_pytest_config(config)
-    exit_mock.assert_called_once_with(
-        "[api-coverage] --coverage-spec-name requires --coverage-spec",
-        returncode=1,
-    )
+    settings = CoverageSettings.from_pytest_config(config)
+    assert settings.config_error is not None
+    assert "--coverage-spec" in settings.config_error
+
+
+class TestDeferredUsageError:
+    def test_from_pytest_config_stores_error_instead_of_raising(self, mocker: Any) -> None:
+        """from_pytest_config must store errors in config_error, not raise."""
+        mock_config = _make_mock_config(
+            mocker,
+            {
+                "coverage_spec": "./auth.yaml",
+                "coverage_spec_name": "auth",
+                "coverage_spec_api_url": None,
+            },
+        )
+        # Must NOT raise
+        settings = CoverageSettings.from_pytest_config(mock_config)
+        assert settings.config_error is not None
+        assert "--coverage-spec-api-url" in settings.config_error
+
+    def test_raise_if_error_raises_usage_error(self) -> None:
+        """raise_if_error() must raise pytest.UsageError with stored message."""
+        import pytest
+
+        settings = CoverageSettings(config_error="[api-coverage] some config error")
+        with pytest.raises(pytest.UsageError, match="some config error"):
+            settings.raise_if_error()
+
+    def test_raise_if_error_is_noop_when_no_error(self) -> None:
+        """raise_if_error() must be a no-op when config_error is None."""
+        settings = CoverageSettings()
+        settings.raise_if_error()  # must not raise
+
+    def test_is_enabled_when_config_error_set(self) -> None:
+        """is_enabled() must return True when config_error is set."""
+        settings = CoverageSettings(config_error="[api-coverage] some error")
+        assert settings.is_enabled() is True
 
 
 def test_top_level_output_dir_applied_from_config_file(tmp_path):

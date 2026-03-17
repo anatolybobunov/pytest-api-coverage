@@ -207,6 +207,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception at session start."""
+        self.settings.raise_if_error()  # raise deferred config errors here
         # Load all specs BEFORE installing HTTP adapters so that any remote spec
         # fetches (httpx.Client) are not intercepted and recorded as coverage data.
         self._load_swagger()
@@ -290,6 +291,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Load swagger and log plugin activity at session start."""
+        self.settings.raise_if_error()  # raise deferred config errors here
         # Initialize orchestrator here (not in __init__) to ensure spec fetches
         # happen before HTTP adapters are installed.
         self._load_swagger()
@@ -412,6 +414,7 @@ class CoverageWorkerPlugin(_InterceptionMixin):
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
         """Setup HTTP interception on worker."""
+        self.settings.raise_if_error()  # raise deferred config errors here
         self._setup_http_interception()
 
     @pytest.hookimpl
