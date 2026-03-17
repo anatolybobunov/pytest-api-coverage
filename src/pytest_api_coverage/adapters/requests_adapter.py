@@ -7,8 +7,13 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-import requests
-import requests.sessions
+try:
+    import requests
+    import requests.sessions
+
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse
@@ -31,6 +36,8 @@ class RequestsAdapter:
 
     def install(self) -> None:
         """Install adapter to intercept requests library traffic."""
+        if not REQUESTS_AVAILABLE:
+            return  # requests not installed, skip silently
         with self._lock:
             if self._installed:
                 return
@@ -77,6 +84,8 @@ class RequestsAdapter:
 
     def uninstall(self) -> None:
         """Uninstall adapter and restore original behavior."""
+        if not REQUESTS_AVAILABLE:
+            return
         with self._lock:
             if not self._installed:
                 return

@@ -340,6 +340,34 @@ class TestHttpxAdapterAsync:
         assert data[0]["request"]["method"] == "GET"
 
 
+# ============== REQUESTS AVAILABILITY GUARD TESTS ==============
+
+
+class TestRequestsAdapterImportGuard:
+    """Tests for graceful degradation when requests is not installed."""
+
+    def test_install_is_noop_when_requests_unavailable(self, monkeypatch) -> None:
+        """RequestsAdapter.install() must silently skip when REQUESTS_AVAILABLE is False."""
+        import pytest_api_coverage.adapters.requests_adapter as mod
+
+        monkeypatch.setattr(mod, "REQUESTS_AVAILABLE", False)
+
+        collector = CoverageCollector()
+        adapter = RequestsAdapter(collector)
+        adapter.install()
+
+        assert not adapter.is_installed()
+
+    def test_uninstall_is_noop_when_requests_unavailable(self, monkeypatch) -> None:
+        """RequestsAdapter.uninstall() must not raise when REQUESTS_AVAILABLE is False."""
+        import pytest_api_coverage.adapters.requests_adapter as mod
+
+        monkeypatch.setattr(mod, "REQUESTS_AVAILABLE", False)
+
+        adapter = RequestsAdapter(CoverageCollector())
+        adapter.uninstall()  # must not raise
+
+
 # ============== STACKING GUARD TESTS ==============
 
 
