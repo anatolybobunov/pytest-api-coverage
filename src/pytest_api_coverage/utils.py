@@ -20,9 +20,9 @@ def normalize_origin(url: str) -> str:
 
     # Handle bare hostname without scheme
     if not parsed.scheme:
-        parsed = urlparse(f"https://{url}")
+        parsed = urlparse(f"http://{url}")
 
-    scheme = parsed.scheme or "https"
+    scheme = parsed.scheme or "http"
     host = parsed.hostname or parsed.netloc or url
     port = parsed.port
 

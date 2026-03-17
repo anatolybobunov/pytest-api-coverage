@@ -40,6 +40,8 @@ class HttpxAdapter:
         self._installed: bool = False
         self._original_request: Callable[..., Any] | None = None
         self._original_async_request: Callable[..., Any] | None = None
+        self._patched_request: Callable[..., Any] | None = None
+        self._patched_async_request: Callable[..., Any] | None = None
 
     def install(self) -> None:
         """Install adapter to intercept httpx library traffic."""
@@ -84,11 +86,13 @@ class HttpxAdapter:
                     )
                 except Exception:
                     logger.warning("httpx sync: Failed to record %s %s", method, url, exc_info=True)
+                    collector.record_error()
 
                 return response
 
             setattr(patched_request, _PATCH_SENTINEL, True)
             httpx.Client.request = patched_request  # type: ignore[method-assign]
+            self._patched_request = patched_request
 
             # Patch async AsyncClient.request independently — a prior adapter may have patched
             # only the async client, but since the sync guard above passed, this instance owns
@@ -121,11 +125,13 @@ class HttpxAdapter:
                         )
                     except Exception:
                         logger.warning("httpx async: Failed to record %s %s", method, url, exc_info=True)
+                        collector.record_error()
 
                     return response
 
                 setattr(patched_async_request, _PATCH_SENTINEL, True)
                 httpx.AsyncClient.request = patched_async_request  # type: ignore[method-assign]
+                self._patched_async_request = patched_async_request
 
             self._installed = True  # Only reached when sync patch was applied by this instance
             logger.debug("Patched httpx.Client.request and httpx.AsyncClient.request for HTTP interception")
@@ -139,15 +145,17 @@ class HttpxAdapter:
             if not self._installed:
                 return
 
-            current_sync = httpx.Client.request
-            if getattr(current_sync, _PATCH_SENTINEL, False) and self._original_request:
+            current_sync = getattr(httpx.Client, 'request', None)
+            if current_sync is self._patched_request and self._original_request is not None:
                 httpx.Client.request = self._original_request  # type: ignore[method-assign]
             self._original_request = None
+            self._patched_request = None
 
-            current_async = httpx.AsyncClient.request
-            if getattr(current_async, _PATCH_SENTINEL, False) and self._original_async_request:
+            current_async = getattr(httpx.AsyncClient, 'request', None)
+            if current_async is self._patched_async_request and self._original_async_request is not None:
                 httpx.AsyncClient.request = self._original_async_request  # type: ignore[method-assign]
             self._original_async_request = None
+            self._patched_async_request = None
 
             self._installed = False
 
@@ -208,10 +216,16 @@ def _record_httpx_interaction(
     resp_headers = {k: v for k, v in response.headers.items()}
     resp_content_type = response.headers.get("content-type")
 
-    # Calculate body size
+    # Calculate body size — avoid reading an unconsumed stream.
     body_size = 0
     try:
-        body_size = len(response.content)
+        if hasattr(response, 'is_stream_consumed'):
+            if response.is_stream_consumed:
+                body_size = len(response.content)
+            else:
+                body_size = response.num_bytes_downloaded
+        else:
+            body_size = len(response.content)
     except Exception:
         logger.debug("httpx: Failed to get response body size", exc_info=True)
 

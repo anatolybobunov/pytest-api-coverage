@@ -1,5 +1,6 @@
 """Thread-safe collector for HTTP interactions."""
 
+import contextvars
 import decimal
 import logging
 import threading
@@ -10,6 +11,10 @@ from typing import Any, Protocol, runtime_checkable
 from pytest_api_coverage.models import HTTPInteraction
 
 logger = logging.getLogger("pytest_api_coverage")
+
+_current_test_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "_current_test_var", default=None
+)
 
 
 @runtime_checkable
@@ -35,12 +40,22 @@ class CoverageCollector:
         self._queue: Queue[HTTPInteraction] = Queue()
         self._data: list[HTTPInteraction] = []
         self._lock = threading.Lock()
-        self._current_test: str | None = None
+        self._record_errors: int = 0
+
+    def record_error(self) -> None:
+        """Increment the recording-error counter (thread-safe)."""
+        with self._lock:
+            self._record_errors += 1
+
+    @property
+    def record_error_count(self) -> int:
+        """Return the number of recording errors seen so far (thread-safe)."""
+        with self._lock:
+            return self._record_errors
 
     def set_current_test(self, test_name: str | None) -> None:
         """Set the current test name for attribution."""
-        with self._lock:
-            self._current_test = test_name
+        _current_test_var.set(test_name)
 
     def record(self, interaction: HTTPInteraction) -> None:
         """Thread-safe recording of HTTP interaction.
@@ -48,8 +63,7 @@ class CoverageCollector:
         If test_name is not set on interaction, uses current test context.
         """
         if interaction.test_name is None:
-            with self._lock:
-                current = self._current_test
+            current = _current_test_var.get()
             if current:
                 interaction = HTTPInteraction(
                     request=interaction.request,

@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HTML — visual report with sortable tables and color-coded coverage
 - pytest-xdist support for parallel test execution
 - Multi-spec support: track coverage across multiple API specifications simultaneously
-  - `--coverage-spec` CLI flag (repeatable) with optional `--coverage-spec-name`
+  - `--coverage-spec` CLI flag with optional `--coverage-spec-name`
   - `coverage-config.yaml` config file for declarative multi-spec setup
 - `MultiSpecOrchestrator` to manage lifecycle of multiple specs and reporters
 - Origin filtering options:

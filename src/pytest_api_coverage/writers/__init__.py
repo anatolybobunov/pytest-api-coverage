@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -28,6 +29,8 @@ class WriterProtocol(Protocol):
         """
         ...
 
+
+logger = logging.getLogger(__name__)
 
 WRITER_REGISTRY: dict[str, type[WriterProtocol]] = {
     "json": JsonWriter,
@@ -64,6 +67,9 @@ def write_reports(
     for fmt in formats:
         if fmt in WRITER_REGISTRY:
             writer_cls = WRITER_REGISTRY[fmt]
-            written_files.append(writer_cls.write(report_data, output_dir / f"{stem}.{fmt}"))
+            try:
+                written_files.append(writer_cls.write(report_data, output_dir / f"{stem}.{fmt}"))
+            except Exception:
+                logger.warning("Failed to write %s report", fmt, exc_info=True)
 
     return written_files

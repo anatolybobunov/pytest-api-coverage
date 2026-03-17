@@ -97,7 +97,7 @@ pytest-api-coverage/
 │   └── models.py           # Data models
 ├── tests/                  # Test suite
 ├── docs/                   # Documentation
-└── swagger-examples/       # Example swagger specifications
+└── example_swagger_links.yml  # Example swagger link config
 ```
 
 ## Reporting Issues

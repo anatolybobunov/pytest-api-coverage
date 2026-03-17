@@ -378,9 +378,11 @@ name = "pytest-api-coverage"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "pytest" },
     { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -413,11 +415,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.24.0" },
     { name = "httpx", marker = "extra == 'all'", specifier = ">=0.24.0" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.24.0" },
     { name = "jinja2", specifier = ">=3.0.0" },
     { name = "pytest", specifier = ">=7.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", specifier = ">=2.28.0" },
     { name = "requests", marker = "extra == 'all'", specifier = ">=2.28.0" },
     { name = "requests", marker = "extra == 'requests'", specifier = ">=2.28.0" },
 ]

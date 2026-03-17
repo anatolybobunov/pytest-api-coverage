@@ -21,6 +21,18 @@ Use a real server (test environment) or ensure requests go through the `requests
 The plugin is active but tests do not call `requests` or `httpx`. Make sure your tests
 make real HTTP requests and are not using mocks for all calls.
 
+## No HTTP adapter available
+
+If you installed `pytest-api-coverage` without extras, neither `requests` nor `httpx` adapters will be active. No HTTP calls will be intercepted and coverage will always show 0%.
+
+Install with extras:
+
+```bash
+pip install pytest-api-coverage[requests]
+pip install pytest-api-coverage[httpx]
+pip install pytest-api-coverage[all]
+```
+
 ## Spec not found
 
 **Symptom:** `Swagger file not found: /absolute/path/to/spec.yaml`

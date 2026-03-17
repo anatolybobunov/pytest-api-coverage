@@ -18,8 +18,8 @@ from pytest_api_coverage.utils import normalize_origin
         # Non-standard port - kept
         ("https://api.example.com:8443", "https://api.example.com:8443"),
         ("http://localhost:8080", "http://localhost:8080"),
-        # No scheme - defaults to https
-        ("api.example.com", "https://api.example.com"),
+        # No scheme - defaults to http
+        ("api.example.com", "http://api.example.com"),
         # Already-normalized origin
         ("https://api.example.com:9000", "https://api.example.com:9000"),
     ],

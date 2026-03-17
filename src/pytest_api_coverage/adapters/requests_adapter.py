@@ -36,6 +36,7 @@ class RequestsAdapter:
         self._lock = threading.Lock()
         self._installed: bool = False
         self._original_request: Callable[..., Any] | None = None
+        self._patched_request: Callable[..., Any] | None = None
 
     def install(self) -> None:
         """Install adapter to intercept requests library traffic."""
@@ -78,11 +79,13 @@ class RequestsAdapter:
                     )
                 except Exception:
                     logger.warning("requests: Failed to record %s %s", method, url, exc_info=True)
+                    collector.record_error()
 
                 return response
 
             setattr(patched_request, _PATCH_SENTINEL, True)
             requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
+            self._patched_request = patched_request
             self._installed = True
             logger.debug("Patched requests.Session.request for HTTP interception")
 
@@ -94,15 +97,12 @@ class RequestsAdapter:
             if not self._installed:
                 return
 
-            current = requests.sessions.Session.request
-            if not getattr(current, _PATCH_SENTINEL, False):
-                self._installed = False
-                return
-
-            if self._original_request is not None:
+            current = getattr(requests.sessions.Session, 'request', None)
+            if current is self._patched_request and self._original_request is not None:
                 requests.sessions.Session.request = self._original_request  # type: ignore[method-assign]
-                self._original_request = None
 
+            self._original_request = None
+            self._patched_request = None
             self._installed = False
 
     def is_installed(self) -> bool:

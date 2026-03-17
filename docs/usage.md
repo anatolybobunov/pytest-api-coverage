@@ -18,7 +18,7 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--coverage-spec` | — | Path or URL to OpenAPI/Swagger spec |
-| `--coverage-output` | `coverage-output` | Output directory for reports |
+| `--coverage-output` | `api-coverage-report` | Output directory for reports |
 | `--coverage-format` | `html` | Output format(s) (default: `html`) |
 | `--coverage-strip-prefix` | — | Strip URL prefix from recorded paths |
 | `--coverage-split-by-origin` | `false` | Split coverage by origin URL |
@@ -34,7 +34,7 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 pytest tests/ --coverage-spec=api/swagger.yaml
 ```
 
-Generates reports in `coverage-output/` directory.
+Generates reports in `api-coverage-report/` directory.
 
 ### Custom Output Directory
 
@@ -168,7 +168,7 @@ For projects with multiple APIs, use a config file instead of CLI flags.
 ### Config File (coverage-config.yaml)
 
 ```yaml
-output_dir: coverage-output
+output_dir: api-coverage-report
 formats: [html, json]
 specs:
   - name: users-api
@@ -190,10 +190,28 @@ You can also specify the config path explicitly:
 pytest --coverage-config=path/to/config.yaml
 ```
 
-### `--coverage-spec-name` Dual Behavior
+### `--coverage-spec-name` Behavior
 
-- With CLI spec (`--coverage-spec`): sets the display label for that spec
-- With config file: filters to run only the named spec(s)
+`--coverage-spec-name` behaves differently depending on context:
+
+**With `--coverage-spec`** — sets a display label for that spec. `--coverage-spec-api-url` is required to filter which requests are attributed to it.
+
+```bash
+pytest tests/ \
+  --coverage-spec=api/swagger.yaml \
+  --coverage-spec-name=users-api \
+  --coverage-spec-api-url=http://localhost:8001
+```
+
+**With a config file** — filters specs to run only the named entry. `--coverage-spec-api-url` is ignored (a warning is emitted).
+
+```bash
+pytest tests/ \
+  --coverage-config=coverage-config.yaml \
+  --coverage-spec-name=payments-api
+```
+
+**Without `--coverage-spec` and without a config file** — produces an error; there is no spec to label or filter.
 
 ### Note on Mocking Libraries
 

@@ -61,7 +61,7 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 | `--coverage-spec-name` | — | Label for the spec; used as filename prefix in reports |
 | `--coverage-spec-api-url` | — | Base URL(s) to match requests against (repeatable) |
 | `--coverage-config` | — | Path to YAML/JSON config file for multi-spec mode |
-| `--coverage-output` | `coverage-output` | Output directory for reports |
+| `--coverage-output` | `api-coverage-report` | Output directory for reports |
 | `--coverage-format` | `html` | Report formats (comma-separated). Use `all` for json,csv,html |
 | `--coverage-strip-prefix` | — | Path prefixes to strip from request URLs (comma-separated) |
 | `--coverage-split-by-origin` | `false` | Separate coverage per API origin |
@@ -82,7 +82,7 @@ uv run ruff check src/ tests/
 uv run ruff format src/ tests/
 
 # Type checking
-uv run mypy src/
+uv run ty check src/
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.

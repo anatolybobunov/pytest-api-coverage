@@ -10,7 +10,7 @@ from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCov
 from pytest_api_coverage.schemas import SwaggerSpec
 from pytest_api_coverage.utils import normalize_origin
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pytest_api_coverage")
 
 
 class CoverageReporter:

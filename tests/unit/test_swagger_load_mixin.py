@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from pytest_api_coverage.config.settings import CoverageSettings
 from pytest_api_coverage.plugin import _SwaggerLoadMixin

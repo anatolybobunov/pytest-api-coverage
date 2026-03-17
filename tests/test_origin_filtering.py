@@ -20,8 +20,8 @@ class TestOriginNormalization:
         assert normalize_origin("https://api.example.com:8443/path") == "https://api.example.com:8443"
 
     def test_normalize_no_scheme(self):
-        """URL without scheme gets https default."""
-        assert normalize_origin("api.example.com") == "https://api.example.com"
+        """URL without scheme gets http default."""
+        assert normalize_origin("api.example.com") == "http://api.example.com"
 
 
 class TestSingleBaseUrlFilter:

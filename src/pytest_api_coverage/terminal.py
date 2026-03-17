@@ -16,6 +16,7 @@ def print_terminal_summary(
     terminalreporter: TerminalReporter,
     report_data: dict[str, Any],
     settings: CoverageSettings,
+    record_errors: int = 0,
 ) -> None:
     """Print coverage summary to pytest terminal (single-spec / --swagger mode).
 
@@ -54,20 +55,41 @@ def print_terminal_summary(
         terminalreporter.write_line(
             f"[api-coverage] {unmatched} request(s) did not match any endpoint in the spec"
         )
+    if record_errors > 0:
+        terminalreporter.write_line(
+            f"[api-coverage] Warning: {record_errors} HTTP recording error(s) — enable DEBUG logging for details",
+            yellow=True,
+        )
 
 
-def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: MultiSpecOrchestrator) -> None:
+def print_multi_spec_summary(
+    terminalreporter: TerminalReporter,
+    orchestrator: MultiSpecOrchestrator,
+    record_errors: int = 0,
+    failed_specs: list[tuple[str, str]] | None = None,
+) -> None:
     """Print multi-spec coverage summary to pytest terminal.
 
     Shows one row per spec with endpoints, %, req count, filename, plus a TOTAL row.
+    If ``failed_specs`` is provided, failed spec load errors are printed before the
+    table (or instead of it when no specs loaded successfully).
 
     Args:
         terminalreporter: pytest TerminalReporter
         orchestrator: MultiSpecOrchestrator with all spec reporters
+        record_errors: Number of HTTP recording errors encountered during the session.
+        failed_specs: Optional list of (spec_name, error_message) pairs for specs
+            that could not be loaded.
     """
     specs = orchestrator.specs
     reporters = orchestrator.reporters
-    if not specs:
+    if failed_specs:
+        terminalreporter.write_sep("=", "API Coverage Summary")
+        for name, error in failed_specs:
+            terminalreporter.write_line(f"[api-coverage] FAILED to load spec '{name}': {error}")
+        if not specs:
+            return
+    elif not specs:
         return
 
     rows = []
@@ -119,6 +141,11 @@ def print_multi_spec_summary(terminalreporter: TerminalReporter, orchestrator: M
         f"{name_col}   {total_covered}/{total_endpoints} endpoints"
         f"   {total_pct:.1f}%   {total_requests} req   {unmatched} unmatched"
     )
+    if record_errors > 0:
+        terminalreporter.write_line(
+            f"[api-coverage] Warning: {record_errors} HTTP recording error(s) — enable DEBUG logging for details",
+            yellow=True,
+        )
 
 
 def print_split_summary(terminalreporter: TerminalReporter, report_data: dict[str, Any]) -> None:

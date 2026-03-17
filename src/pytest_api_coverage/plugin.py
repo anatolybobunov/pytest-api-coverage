@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -100,6 +101,8 @@ def pytest_configure(config: Config) -> None:
         # Single process mode
         plugin_class = CoverageSinglePlugin
 
+    if config.pluginmanager.has_plugin("api_coverage_plugin"):
+        return
     logger.debug("Registering %s", plugin_class.__name__)
     plugin = plugin_class(config)
     config.pluginmanager.register(plugin, "api_coverage_plugin")
@@ -157,6 +160,12 @@ class _InterceptionMixin:
     @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: Item) -> None:
         """Clear current test name after all other plugins' teardown completes."""
+        self.collector.set_current_test(None)
+
+    @pytest.hookimpl(hookwrapper=True, trylast=True)
+    def pytest_runtest_protocol(self, item: Item, nextitem: Item | None) -> Generator[None, None, None]:
+        """Safety net: ensure _current_test is always cleared after each test."""
+        yield
         self.collector.set_current_test(None)
 
     def _setup_http_interception(self) -> None:
@@ -241,9 +250,19 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
         if self.orchestrator:
-            print_multi_spec_summary(terminalreporter, self.orchestrator)
+            print_multi_spec_summary(
+                terminalreporter,
+                self.orchestrator,
+                record_errors=self.collector.record_error_count,
+                failed_specs=self.orchestrator.failed_specs,
+            )
         elif self.report_data:
-            print_terminal_summary(terminalreporter, self.report_data, self.settings)
+            print_terminal_summary(
+                terminalreporter,
+                self.report_data,
+                self.settings,
+                record_errors=self.collector.record_error_count,
+            )
         elif self._swagger_load_error:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
@@ -317,7 +336,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
     @pytest.hookimpl
     def pytest_testnodedown(self, node: object, error: object) -> None:
         """Collect coverage data from finished worker."""
-        if hasattr(node, "gateway") and node.gateway:  # type: ignore[attr-defined]
+        if hasattr(node, "gateway") and node.gateway:
             worker_id = node.gateway.id  # type: ignore[attr-defined]
         else:
             worker_id = str(node)
@@ -361,7 +380,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
         if self.orchestrator:
-            print_multi_spec_summary(terminalreporter, self.orchestrator)
+            print_multi_spec_summary(terminalreporter, self.orchestrator, failed_specs=self.orchestrator.failed_specs)
         elif self.report_data:
             print_terminal_summary(terminalreporter, self.report_data, self.settings)
         elif self._swagger_load_error:
@@ -442,7 +461,7 @@ class CoverageWorkerPlugin(_InterceptionMixin):
         self.settings.raise_if_error()  # raise deferred config errors here
         self._setup_http_interception()
 
-    @pytest.hookimpl
+    @pytest.hookimpl(trylast=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int) -> None:
         """Send collected data back to master."""
         if self.settings.specs:

@@ -366,3 +366,63 @@ class TestMasterPluginZeroRequestsTerminal:
         # Must NOT use logger.warning for this message
         for call in mock_logger.warning.call_args_list:
             assert "0 HTTP requests" not in str(call)
+
+
+def test_current_test_cleared_after_setup_failure(pytester: pytest.Pytester) -> None:
+    """pytest_runtest_protocol safety net clears _current_test even when setup raises.
+
+    A fixture that raises during setup will skip teardown, so pytest_runtest_teardown
+    never fires.  The hookwrapper on pytest_runtest_protocol must still clear
+    _current_test so the next test does not inherit a stale test_name.
+    """
+    spec = pytester.path / "spec.yaml"
+    spec.write_text(MINIMAL_SPEC)
+
+    pytester.makepyfile("""
+        import pytest
+        import httpx
+
+        @pytest.fixture
+        def broken_setup():
+            raise RuntimeError("setup intentionally broken")
+
+        def test_with_broken_setup(broken_setup):
+            pass  # never reached
+
+        def test_after_broken_setup(httpx_mock):
+            # This test runs after the setup failure.
+            # It must NOT see a stale test_name from test_with_broken_setup.
+            httpx_mock.add_response(url="https://api.example.com/users", status_code=200)
+            import httpx as _httpx
+            _httpx.get("https://api.example.com/users")
+    """)
+
+    result = pytester.runpytest_subprocess(
+        "--coverage-spec=spec.yaml",
+        "--coverage-output=out",
+        "--coverage-format=json",
+        "-v",
+    )
+
+    # First test errors (setup failure), second test passes.
+    result.assert_outcomes(passed=1, errors=1)
+
+    import json
+
+    report_path = pytester.path / "out" / "coverage.json"
+    assert report_path.exists(), "coverage.json must be produced"
+    data = json.loads(report_path.read_text())
+
+    # The request made in test_after_broken_setup must be attributed to that test,
+    # not to test_with_broken_setup (which never ran its body).
+    covered = [
+        e for e in data.get("endpoints", [])
+        if any(m.get("is_covered") for m in e.get("methods", []))
+    ]
+    assert covered, "At least one endpoint must be covered by the second test"
+    for path_entry in covered:
+        for method_entry in path_entry.get("methods", []):
+            for test_name in method_entry.get("test_names", []):
+                assert "test_with_broken_setup" not in test_name, (
+                    f"Stale test_name from broken-setup test leaked into coverage: {test_name}"
+                )

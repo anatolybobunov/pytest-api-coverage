@@ -29,6 +29,7 @@ class MultiSpecOrchestrator:
         self.unmatched_count: int = 0
         self._reporters: dict[str, CoverageReporter] = {}
         self._specs: list[SpecConfig] = []
+        self._failed_specs: list[tuple[str, str]] = []
         self._load_all_specs()
         self._warn_overlapping_urls()
 
@@ -53,6 +54,7 @@ class MultiSpecOrchestrator:
                 self._specs.append(spec)
             except Exception as e:
                 logger.warning("Failed to load spec '%s': %s", spec.name, e, exc_info=True)
+                self._failed_specs.append((spec.name, str(e)))
 
     def _warn_overlapping_urls(self) -> None:
         """Check for URL overlap across specs and warn. Uses normalized origin for comparison."""
@@ -100,6 +102,11 @@ class MultiSpecOrchestrator:
     def specs(self) -> list[SpecConfig]:
         """Read-only view of loaded specs."""
         return self._specs
+
+    @property
+    def failed_specs(self) -> list[tuple[str, str]]:
+        """Read-only view of specs that failed to load, as (name, error) pairs."""
+        return self._failed_specs
 
     @property
     def reporters(self) -> dict[str, CoverageReporter]:

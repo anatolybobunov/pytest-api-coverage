@@ -1,9 +1,12 @@
 """Tests for CoverageCollector."""
 
+import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from enum import Enum
+
+import pytest
 
 from pytest_api_coverage.collector import CoverageCollector, HTTPInterceptor
 
@@ -216,3 +219,34 @@ def test_get_data_serializable_with_decimal_query_params(make_interaction):
     data = collector.get_data()
 
     _assert_execnet_serializable(data)
+
+
+@pytest.mark.asyncio
+async def test_async_context_var_attribution_per_coroutine(make_interaction):
+    """ContextVar gives each coroutine its own current-test attribution.
+
+    Two coroutines run concurrently via asyncio.gather.  Each sets a
+    different test name and records one interaction.  The ContextVar
+    must keep the values isolated so neither coroutine overwrites the
+    other's attribution.
+    """
+    collector = CoverageCollector()
+
+    async def run_test(test_name: str, path: str) -> None:
+        collector.set_current_test(test_name)
+        # Yield to the event loop so both coroutines are interleaved.
+        await asyncio.sleep(0)
+        interaction = make_interaction(path=path)
+        collector.record(interaction)
+
+    await asyncio.gather(
+        run_test("test_alpha", "/alpha"),
+        run_test("test_beta", "/beta"),
+    )
+
+    data = collector.get_data()
+    assert len(data) == 2
+
+    by_path = {d["request"]["path"]: d["test_name"] for d in data}
+    assert by_path["/alpha"] == "test_alpha"
+    assert by_path["/beta"] == "test_beta"
