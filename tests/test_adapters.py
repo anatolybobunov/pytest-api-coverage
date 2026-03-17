@@ -338,3 +338,99 @@ class TestHttpxAdapterAsync:
         data = httpx_adapter.get_data()
         assert len(data) == 1
         assert data[0]["request"]["method"] == "GET"
+
+
+# ============== STACKING GUARD TESTS ==============
+
+
+class TestAdapterStackingGuard:
+    """Tests that a second adapter instance cannot stack patches on top of a first."""
+
+    @responses.activate
+    def test_two_requests_adapter_instances_do_not_leave_permanent_patch(self) -> None:
+        """Double install/uninstall must not leave Session.request permanently patched."""
+        import requests.sessions as sess
+
+        original = sess.Session.request
+
+        collector1 = CoverageCollector()
+        collector2 = CoverageCollector()
+        adapter1 = RequestsAdapter(collector1)
+        adapter2 = RequestsAdapter(collector2)
+
+        adapter1.install()
+        adapter2.install()  # second instance — should detect sentinel and skip
+        adapter1.uninstall()
+        adapter2.uninstall()
+
+        assert sess.Session.request is original, (
+            "Stacked adapter installs left a permanent patch on Session.request"
+        )
+
+    def test_two_httpx_adapter_instances_do_not_leave_permanent_patch(self) -> None:
+        """Double install/uninstall must not leave httpx.Client.request permanently patched."""
+        pytest.importorskip("httpx")
+        import httpx as httpx_lib
+
+        from pytest_api_coverage.adapters.httpx_adapter import HttpxAdapter
+
+        original = httpx_lib.Client.request
+        original_async = httpx_lib.AsyncClient.request
+        adapter1 = HttpxAdapter(CoverageCollector())
+        adapter2 = HttpxAdapter(CoverageCollector())
+
+        adapter1.install()
+        adapter2.install()
+        adapter1.uninstall()
+        adapter2.uninstall()
+
+        assert httpx_lib.Client.request is original, (
+            "Stacked adapter installs left a permanent patch on httpx.Client.request"
+        )
+        assert httpx_lib.AsyncClient.request is original_async, (
+            "Stacked adapter installs left a permanent patch on httpx.AsyncClient.request"
+        )
+
+    @responses.activate
+    def test_requests_adapter_reverse_uninstall_order(self) -> None:
+        """Reverse uninstall order (adapter2 first) must also leave no permanent patch."""
+        import requests.sessions as sess
+
+        original = sess.Session.request
+
+        adapter1 = RequestsAdapter(CoverageCollector())
+        adapter2 = RequestsAdapter(CoverageCollector())
+
+        adapter1.install()
+        adapter2.install()
+        adapter2.uninstall()  # reverse order
+        adapter1.uninstall()
+
+        assert sess.Session.request is original, (
+            "Reverse-order uninstall left a permanent patch on Session.request"
+        )
+
+    def test_httpx_adapter_reverse_uninstall_order(self) -> None:
+        """Reverse uninstall order (adapter2 first) must also leave no permanent patch."""
+        pytest.importorskip("httpx")
+        import httpx as httpx_lib
+
+        from pytest_api_coverage.adapters.httpx_adapter import HttpxAdapter
+
+        original = httpx_lib.Client.request
+        original_async = httpx_lib.AsyncClient.request
+
+        adapter1 = HttpxAdapter(CoverageCollector())
+        adapter2 = HttpxAdapter(CoverageCollector())
+
+        adapter1.install()
+        adapter2.install()
+        adapter2.uninstall()  # reverse order
+        adapter1.uninstall()
+
+        assert httpx_lib.Client.request is original, (
+            "Reverse-order uninstall left a permanent patch on httpx.Client.request"
+        )
+        assert httpx_lib.AsyncClient.request is original_async, (
+            "Reverse-order uninstall left a permanent patch on httpx.AsyncClient.request"
+        )

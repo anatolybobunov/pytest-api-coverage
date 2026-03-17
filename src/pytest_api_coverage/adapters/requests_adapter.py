@@ -13,6 +13,8 @@ import requests.sessions
 from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse
 
+_PATCH_SENTINEL = "_pytest_api_coverage_patched"
+
 
 class RequestsAdapter:
     """Adapter for the requests library.
@@ -35,6 +37,10 @@ class RequestsAdapter:
 
             collector = self._collector
             original = requests.sessions.Session.request
+            if getattr(original, _PATCH_SENTINEL, False):
+                # Another adapter instance already patched this method — skip to avoid stacking
+                return
+
             self._original_request = original
 
             def patched_request(
@@ -65,6 +71,7 @@ class RequestsAdapter:
 
                 return response
 
+            setattr(patched_request, _PATCH_SENTINEL, True)
             requests.sessions.Session.request = patched_request  # type: ignore[assignment,method-assign]
             self._installed = True
 
