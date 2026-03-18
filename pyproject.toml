@@ -17,11 +17,13 @@ classifiers = [
     "Framework :: Pytest",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
 ]
 dependencies = [
     "pytest>=7.0.0",
@@ -39,6 +41,7 @@ Homepage = "https://github.com/anatolybobunov/pytest-api-coverage"
 Repository = "https://github.com/anatolybobunov/pytest-api-coverage"
 Documentation = "https://github.com/anatolybobunov/pytest-api-coverage#readme"
 Changelog = "https://github.com/anatolybobunov/pytest-api-coverage/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/anatolybobunov/pytest-api-coverage/issues"
 
 [dependency-groups]
 dev = [
@@ -78,7 +81,3 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 # HTML template contains long Jinja2 lines
 "src/pytest_api_coverage/writers/html_writer.py" = ["E501"]
 
-[tool.mypy]
-python_version = "3.11"
-strict = true
-files = ["src/pytest_api_coverage"]

@@ -23,7 +23,7 @@ make real HTTP requests and are not using mocks for all calls.
 
 ## No HTTP adapter available
 
-Both `requests` and `httpx` are hard dependencies of pytest-api-coverage and are always installed alongside the plugin. An adapter skip does not indicate a missing extra — it means one of the libraries failed to import at runtime due to environment issues (e.g., a heavily constrained virtualenv or a broken installation).
+`requests` and `httpx` are optional extras for pytest-api-coverage (`pip install pytest-api-coverage[requests]`, `pip install pytest-api-coverage[httpx]`, or `pip install pytest-api-coverage[all]`). An adapter skip does not indicate a broken install — it means one of the optional libraries is not installed or failed to import at runtime (e.g., a heavily constrained virtualenv).
 
 If you see a warning about an adapter being skipped, verify that both libraries are importable in your test environment:
 

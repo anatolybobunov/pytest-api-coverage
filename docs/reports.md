@@ -164,7 +164,7 @@ Start by checking unmatched requests first. A large unmatched count means the co
 
 Once unmatched requests are near zero:
 
-- Use the JSON report for automated threshold checks in CI pipelines (see [CI Integration](ci-integration.md)). The `summary.coverage_percentage` field is straightforward to parse with `jq`.
+- Use the JSON report for automated threshold checks in CI pipelines. The `summary.coverage_percentage` field is straightforward to parse with `jq`.
 - Prioritize covering POST, PUT, PATCH, and DELETE endpoints over GET — write operations carry higher risk and tend to have more complex state-dependent behaviour.
 - Use `test_names` in the JSON report to identify which tests cover which endpoints. Endpoints with no `test_names` have zero hits.
 - Filter the HTML report by the "Not Covered" status to get a focused list of gaps.
