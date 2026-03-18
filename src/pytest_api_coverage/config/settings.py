@@ -209,7 +209,6 @@ class CoverageSettings:
             return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-spec")
         elif coverage_spec is None:
             from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
-                _discover_config_file,
                 load_multi_spec_config,
             )
 
@@ -220,10 +219,6 @@ class CoverageSettings:
                 if not config_path.exists():
                     return cls(config_error=f"[api-coverage] Config file not found: {config_path}")
                 specs, top_level = load_multi_spec_config(config_path)
-            else:
-                discovered = _discover_config_file(config.rootpath)
-                if discovered:
-                    specs, top_level = load_multi_spec_config(discovered)
 
             if spec_name:
                 if spec_api_urls:

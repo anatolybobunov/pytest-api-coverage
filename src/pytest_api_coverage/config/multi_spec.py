@@ -72,21 +72,3 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     return SpecConfig(name=name, api_urls=api_urls, swagger_path=swagger_path, swagger_url=swagger_url)
 
 
-def _discover_config_file(rootpath: Path) -> Path | None:
-    """Probe rootpath for coverage-config.yaml, coverage-config.yml, or coverage-config.json.
-
-    Candidates are checked in that order of preference. Returns the Path to the
-    first discovered file, or None if none exist. Warns if more than one candidate
-    is present and returns the highest-priority match.
-    """
-    yaml_candidate = rootpath / "coverage-config.yaml"
-    yml_candidate = rootpath / "coverage-config.yml"
-    json_candidate = rootpath / "coverage-config.json"
-
-    existing = [p for p in [yaml_candidate, yml_candidate, json_candidate] if p.exists()]
-    if not existing:
-        return None
-    if len(existing) > 1:
-        logger.warning("Multiple coverage config files found; using %s", existing[0])
-        return existing[0]
-    return existing[0]

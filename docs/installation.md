@@ -7,14 +7,25 @@
 
 ## Install from PyPI
 
+Choose the extra matching the HTTP library your project uses:
+
 ```bash
-pip install pytest-api-coverage
+# If your project uses requests
+pip install pytest-api-coverage[requests]
+
+# If your project uses httpx
+pip install pytest-api-coverage[httpx]
+
+# If your project uses both
+pip install pytest-api-coverage[requests,httpx]
 ```
 
 Or with uv:
 
 ```bash
-uv add pytest-api-coverage
+uv add pytest-api-coverage[requests]
+uv add pytest-api-coverage[httpx]
+uv add pytest-api-coverage[requests,httpx]
 ```
 
 ## Install from Source
@@ -22,13 +33,15 @@ uv add pytest-api-coverage
 ### Using pip
 
 ```bash
-pip install git+https://github.com/anatolybobunov/pytest-api-coverage.git
+pip install "pytest-api-coverage[requests] @ git+https://github.com/anatolybobunov/pytest-api-coverage.git"
+pip install "pytest-api-coverage[httpx] @ git+https://github.com/anatolybobunov/pytest-api-coverage.git"
 ```
 
 ### Using uv
 
 ```bash
-uv add git+https://github.com/anatolybobunov/pytest-api-coverage.git
+uv add "pytest-api-coverage[requests] @ git+https://github.com/anatolybobunov/pytest-api-coverage.git"
+uv add "pytest-api-coverage[httpx] @ git+https://github.com/anatolybobunov/pytest-api-coverage.git"
 ```
 
 ### Local Development Install
@@ -38,50 +51,28 @@ uv add git+https://github.com/anatolybobunov/pytest-api-coverage.git
 git clone https://github.com/anatolybobunov/pytest-api-coverage.git
 cd pytest-api-coverage
 
-# Install in editable mode
-pip install -e .
+# Install in editable mode with your HTTP library of choice
+pip install -e ".[requests]"
+pip install -e ".[httpx]"
+pip install -e ".[requests,httpx]"
 
 # Or with uv
-uv pip install -e .
+uv pip install -e ".[requests]"
+uv pip install -e ".[httpx]"
+uv pip install -e ".[requests,httpx]"
 ```
 
 ## Dependencies
-
-The plugin automatically installs the following dependencies:
 
 | Package | Version | Purpose |
 |---------|---------|---------|
 | pytest | >=7.0.0 | Test framework |
 | pyyaml | >=6.0 | YAML parsing for swagger files |
-| requests | >=2.28.0 | HTTP interception (optional) |
-| httpx    | >=0.24.0 | Async HTTP interception (optional) |
 | jinja2 | >=3.0.0 | HTML report templating |
+| requests *(optional)* | >=2.28.0 | HTTP interception for `requests`-based code |
+| httpx *(optional)* | >=0.24.0 | HTTP interception for `httpx`-based code |
 
-> **Note:** `requests` and `httpx` are optional adapters. Install only what your test suite needs:
->
-> ```bash
-> # Enable requests support
-> pip install pytest-api-coverage[requests]
->
-> # Enable all adapters
-> pip install pytest-api-coverage[all]
-> ```
-
-## Build Distribution Packages
-
-To build wheel and sdist packages locally:
-
-```bash
-# Using hatch (matches the build backend)
-pip install hatch
-hatch build
-
-# Or using the standard build frontend
-pip install build
-python -m build
-```
-
-Artifacts are placed in the `dist/` directory.
+`requests` and `httpx` are optional — install only the one your project uses.
 
 ## Verify Installation
 
@@ -110,3 +101,7 @@ Then run tests with:
 ```bash
 pytest tests/ -n 4 --coverage-spec=swagger.json
 ```
+
+## Next Steps
+
+See the [Usage Guide](usage.md) to start using the plugin.

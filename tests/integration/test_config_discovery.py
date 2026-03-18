@@ -1,8 +1,7 @@
-"""Integration tests for config file auto-discovery and explicit --coverage-config flag.
+"""Integration tests for explicit --coverage-config flag and plugin inactive state.
 
 These tests use the pytester fixture (pytest >= 7.0 built-in) to run pytest in a
-subprocess with a temporary project directory. This validates the full activation
-path: config file found -> parsed -> specs in CoverageSettings -> is_enabled() True.
+subprocess with a temporary project directory.
 """
 
 from __future__ import annotations
@@ -35,68 +34,15 @@ _COVERAGE_CONFIG_JSON_ONE_SPEC = """\
 """
 
 
-def test_autodiscover_yaml(pytester: pytest.Pytester) -> None:
-    """Auto-discovery finds coverage-config.yaml in project root and loads specs.
+def test_no_flags_plugin_inactive(pytester: pytest.Pytester) -> None:
+    """No CLI spec flags -> plugin is inactive, no error.
 
-    The plugin should discover coverage-config.yaml, load the spec, validate the
-    spec's path (auth.yaml) exists, and proceed without error.
+    The plugin should fall through silently (disabled state) even if config files
+    are present in the project root.
     """
-    # Create the coverage-config.yaml in the temp project root
+    # Place a coverage-config.yaml to verify it is NOT auto-discovered
     pytester.makefile(".yaml", **{"coverage-config": _COVERAGE_CONFIG_ONE_SPEC})
-    # Create the spec file so path validation passes
     pytester.makefile(".yaml", **{"auth": _MINIMAL_OPENAPI})
-    # Create a dummy test
-    pytester.makepyfile("def test_noop(): pass")
-
-    result = pytester.runpytest("--collect-only", "-q")
-
-    # Plugin should not exit with a config error
-    result.stdout.no_fnmatch_line("*Config file not found*")
-    result.stdout.no_fnmatch_line("*Spec file not found*")
-    assert result.ret == 0
-
-
-def test_autodiscover_json(pytester: pytest.Pytester) -> None:
-    """Auto-discovery finds coverage-config.json when no YAML present.
-
-    When only coverage-config.json exists, the plugin loads it silently.
-    Uses url-based spec entry to avoid path validation.
-    """
-    pytester.makefile(".json", **{"coverage-config": _COVERAGE_CONFIG_JSON_ONE_SPEC})
-    pytester.makepyfile("def test_noop(): pass")
-
-    result = pytester.runpytest("--collect-only", "-q")
-
-    result.stdout.no_fnmatch_line("*Config file not found*")
-    result.stdout.no_fnmatch_line("*Spec file not found*")
-    assert result.ret == 0
-
-
-def test_autodiscover_both_yaml_wins(pytester: pytest.Pytester) -> None:
-    """When both coverage-config.yaml and coverage-config.json exist, YAML wins.
-
-    YAML config has spec name 'auth'; JSON config has spec name 'orders'.
-    The terminal summary should show 'auth', confirming YAML was loaded.
-    A warning is emitted via logging (verified by caplog in unit tests).
-    """
-    pytester.makefile(".yaml", **{"coverage-config": _COVERAGE_CONFIG_ONE_SPEC})
-    pytester.makefile(".json", **{"coverage-config": _COVERAGE_CONFIG_JSON_ONE_SPEC})
-    pytester.makefile(".yaml", **{"auth": _MINIMAL_OPENAPI})
-    pytester.makepyfile("def test_noop(): pass")
-
-    result = pytester.runpytest("--collect-only", "-q")
-
-    # YAML config loads spec 'auth'; JSON config would load 'orders' — confirm YAML won
-    result.stdout.fnmatch_lines(["*auth*"])
-    result.stdout.no_fnmatch_line("*orders*")
-    assert result.ret == 0
-
-
-def test_autodiscover_none_no_flag_falls_through(pytester: pytest.Pytester) -> None:
-    """No config file and no CLI spec flags -> plugin is inactive, no error.
-
-    The plugin should fall through silently to --swagger mode (disabled state).
-    """
     pytester.makepyfile("def test_noop(): pass")
 
     result = pytester.runpytest("--collect-only", "-q")

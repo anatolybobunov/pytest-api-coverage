@@ -23,28 +23,21 @@ make real HTTP requests and are not using mocks for all calls.
 
 ## No HTTP adapter available
 
-If you installed `pytest-api-coverage` without extras, neither `requests` nor `httpx` adapters will be active. No HTTP calls will be intercepted and coverage will always show 0%.
+Both `requests` and `httpx` are hard dependencies of pytest-api-coverage and are always installed alongside the plugin. An adapter skip does not indicate a missing extra — it means one of the libraries failed to import at runtime due to environment issues (e.g., a heavily constrained virtualenv or a broken installation).
 
-Install with extras:
+If you see a warning about an adapter being skipped, verify that both libraries are importable in your test environment:
 
 ```bash
-pip install pytest-api-coverage[requests]
-pip install pytest-api-coverage[httpx]
-pip install pytest-api-coverage[all]
+python -c "import requests, httpx; print('OK')"
 ```
+
+If the command fails, reinstall the affected library or inspect your virtualenv for conflicts.
 
 ## Spec not found
 
 **Symptom:** `Swagger file not found: /absolute/path/to/spec.yaml`
 
 Make sure the path is relative to the directory where pytest is run (usually the project root).
-
-## Auto-discovery not working
-
-**Symptom:** Plugin does not activate even though `coverage-config.yaml` exists.
-
-Supported file names: `coverage-config.yaml`, `coverage-config.yml`, `coverage-config.json`.
-The file must be in the project root (the directory where pytest is run).
 
 ## N requests did not match any endpoints
 
@@ -64,3 +57,35 @@ This is the correct behaviour when testing API contracts.
 
 If workers terminated with an error, their data is lost.
 Check for warnings like `"Worker gw0 finished without coverage_data"` in the pytest output.
+
+### `--coverage-spec-api-url` has no effect
+
+**Symptom:** You passed `--coverage-spec-api-url` but requests are not matched against that URL prefix.
+
+**Cause:** `--coverage-spec-api-url` is ignored unless used together with `--coverage-spec` (and optionally `--coverage-spec-name`). In multi-spec config file mode, define `api_urls` per spec in the config file instead.
+
+**Fix:** Always combine with `--coverage-spec`:
+
+```bash
+pytest --coverage-spec=openapi.yaml --coverage-spec-api-url=https://api.example.com
+```
+
+### HTTP requests not captured, no error shown
+
+**Symptom:** Coverage shows 0 requests captured but you expect HTTP calls to be intercepted.
+
+**Cause:** In rare constrained environments, if `requests` or `httpx` fails to import, the adapter is silently skipped with no warning.
+
+**Fix:** Verify both libraries are importable in your test environment:
+
+```bash
+python -c "import requests, httpx; print('OK')"
+```
+
+Also ensure your tests are not using mocking libraries that intercept at the socket level (e.g., `responses`, `pytest-httpx`) — see the note in [Usage Guide](usage.md).
+
+## See Also
+
+- [Installation Guide](installation.md) — dependency requirements
+- [Configuration Reference](configuration.md) — multi-spec setup
+- [Usage Guide](usage.md) — CLI options and examples

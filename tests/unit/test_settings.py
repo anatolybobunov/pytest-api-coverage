@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
+
+from .strategies import valid_coverage_settings, valid_spec_config, valid_url
 
 
 def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> Any:
@@ -375,3 +380,51 @@ def test_cli_output_dir_overrides_config_file(tmp_path):
 
     settings = CoverageSettings.from_pytest_config(config)
     assert settings.output_dir == Path("from-cli")
+
+
+class TestCoverageSettingsProperties:
+    """Property-based tests for CoverageSettings using Hypothesis."""
+
+    @given(valid_coverage_settings())
+    def test_round_trip(self, s: CoverageSettings) -> None:
+        """from_dict(to_dict()) preserves output_dir, formats, split_by_origin, and specs count."""
+        reconstructed = CoverageSettings.from_dict(s.to_dict())
+        assert reconstructed.output_dir == s.output_dir
+        assert reconstructed.formats == s.formats
+        assert reconstructed.split_by_origin == s.split_by_origin
+        assert len(reconstructed.specs) == len(s.specs)
+
+    @given(
+        st.one_of(st.none(), valid_url),
+        st.lists(valid_spec_config(), min_size=0, max_size=3),
+        st.one_of(st.none(), st.text(min_size=1, max_size=30)),
+    )
+    def test_is_enabled_trichotomy(
+        self, spec: str | None, specs: list, config_error: str | None
+    ) -> None:
+        """is_enabled() is True iff spec, specs, or config_error is truthy."""
+        settings = CoverageSettings(spec=spec, specs=specs, config_error=config_error)
+        expected = spec is not None or bool(specs) or config_error is not None
+        assert settings.is_enabled() == expected
+
+    @given(st.frozensets(st.sampled_from(["html", "json", "csv"]), min_size=1))
+    def test_format_normalization(self, formats: frozenset[str]) -> None:
+        """Constructed formats from valid values always remain a subset of valid formats."""
+        settings = CoverageSettings(formats=set(formats))
+        assert settings.formats <= {"html", "json", "csv"}
+
+    @given(
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=3, max_size=15).filter(
+            lambda s: s not in {"html", "json", "csv", "all"}
+        )
+    )
+    def test_unknown_format_sets_config_error(self, fmt: str) -> None:
+        """An unknown format string always causes config_error to be set."""
+        settings = CoverageSettings(formats={fmt})
+        assert settings.config_error is not None
+
+    @given(st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789-_", min_size=1, max_size=30))
+    def test_output_dir_always_path(self, output_dir: str) -> None:
+        """String output_dir is always converted to a Path instance."""
+        settings = CoverageSettings(output_dir=output_dir)
+        assert isinstance(settings.output_dir, Path)

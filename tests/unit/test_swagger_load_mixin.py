@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import tempfile
 from pathlib import Path
+
+from hypothesis import given
+from hypothesis import strategies as st
 
 from pytest_api_coverage.config.settings import CoverageSettings
 from pytest_api_coverage.plugin import _SwaggerLoadMixin
@@ -56,3 +61,23 @@ class TestSwaggerLoadMixinExcInfo:
 
         assert loader.swagger_spec is None
         assert loader._swagger_load_error is None
+
+
+class TestSwaggerLoadMixinProperties:
+    """Property-based tests for _SwaggerLoadMixin using Hypothesis."""
+
+    @given(st.binary(min_size=1))
+    def test_bad_content_always_sets_error(self, data: bytes) -> None:
+        """Random bytes written to a spec file cause _load_swagger to set _swagger_load_error."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            spec_file = Path(tmpdir) / "spec.yaml"
+            spec_file.write_bytes(data)
+            settings = CoverageSettings(spec=spec_file)
+            loader = _ConcreteSwaggerLoader(settings)
+            loader._load_swagger()
+
+            assert loader._swagger_load_error is not None
+            assert loader.swagger_spec is None
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)

@@ -5,8 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from hypothesis import given
 
 from pytest_api_coverage.config.settings import SpecConfig
+
+from .strategies import valid_name, valid_path_str, valid_spec_config, valid_url, valid_url_list
 
 
 class TestSpecConfigCreation:
@@ -106,3 +109,45 @@ class TestSpecConfigToDict:
         result = sc.to_dict()
         assert isinstance(result["swagger_path"], str)
         assert not isinstance(result["swagger_path"], Path)
+
+
+class TestSpecConfigProperties:
+    """Property-based tests for SpecConfig using Hypothesis."""
+
+    @given(valid_spec_config())
+    def test_round_trip(self, sc: SpecConfig) -> None:
+        """from_dict(to_dict()) round-trip preserves the SpecConfig."""
+        assert SpecConfig.from_dict(sc.to_dict()) == sc
+
+    @given(valid_spec_config())
+    def test_to_dict_json_safe(self, sc: SpecConfig) -> None:
+        """to_dict() swagger_path is str or None, never a Path object."""
+        d = sc.to_dict()
+        assert isinstance(d["swagger_path"], (str, type(None)))
+        assert not isinstance(d["swagger_path"], Path)
+
+    @given(valid_url_list)
+    def test_empty_name_always_raises(self, api_urls: list[str]) -> None:
+        """SpecConfig with name='' always raises ValueError regardless of other args."""
+        with pytest.raises(ValueError):
+            SpecConfig(name="", api_urls=api_urls)
+
+    @given(valid_name)
+    def test_empty_api_urls_always_raises(self, name: str) -> None:
+        """SpecConfig with api_urls=[] always raises ValueError regardless of name."""
+        with pytest.raises(ValueError):
+            SpecConfig(name=name, api_urls=[])
+
+    @given(valid_name, valid_url_list, valid_path_str, valid_url)
+    def test_both_path_and_url_always_raises(
+        self, name: str, api_urls: list[str], path_str: str, url: str
+    ) -> None:
+        """SpecConfig with both swagger_path and swagger_url always raises ValueError."""
+        with pytest.raises(ValueError):
+            SpecConfig(name=name, api_urls=api_urls, swagger_path=path_str, swagger_url=url)
+
+    @given(valid_path_str)
+    def test_path_normalization(self, path_str: str) -> None:
+        """String swagger_path is always normalized to a Path instance."""
+        sc = SpecConfig(name="test", api_urls=["https://example.com"], swagger_path=path_str)
+        assert isinstance(sc.swagger_path, Path)

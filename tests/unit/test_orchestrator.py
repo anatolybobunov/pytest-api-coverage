@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 
@@ -251,3 +255,99 @@ class TestProcessInteractions:
         auth_reporter.process_interactions.assert_any_call([auth_i1])
         auth_reporter.process_interactions.assert_any_call([auth_i2])
         orders_reporter.process_interactions.assert_called_once_with([orders_i1])
+
+
+class TestOrchestratorProperties:
+    """Property-based tests for MultiSpecOrchestrator using Hypothesis."""
+
+    @given(
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyz0123456789/-",
+            min_size=0,
+            max_size=30,
+        )
+    )
+    def test_routing_never_raises(self, path_suffix: str) -> None:
+        """route_interaction never raises; always returns str or None."""
+        from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
+        tmpdir = tempfile.mkdtemp()
+        try:
+            spec_file = Path(tmpdir) / "spec.yaml"
+            spec_file.write_text(MINIMAL_SPEC)
+            settings = CoverageSettings(
+                specs=[
+                    SpecConfig(
+                        name="test",
+                        api_urls=["https://auth.example.com", "https://orders.example.com"],
+                        swagger_path=spec_file,
+                    )
+                ]
+            )
+            orch = MultiSpecOrchestrator(settings)
+            interaction = {
+                "request": {
+                    "url": f"https://auth.example.com/{path_suffix}",
+                    "method": "GET",
+                    "path": f"/{path_suffix}",
+                },
+                "response": {"status_code": 200},
+                "test_name": "test_routing",
+            }
+            result = orch.route_interaction(interaction)
+            assert result is None or isinstance(result, str)
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    @given(
+        st.lists(
+            st.sampled_from(
+                [
+                    "https://auth.example.com/users",
+                    "https://auth.example.com/items",
+                    "https://orders.example.com/orders",
+                    "https://unknown.example.com/path",
+                    "https://other.example.com/api",
+                ]
+            ),
+            min_size=0,
+            max_size=20,
+        )
+    )
+    def test_unmatched_count_consistency(self, urls: list[str]) -> None:
+        """unmatched_count equals the number of interactions that route_interaction returns None for."""
+        from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
+        tmpdir = tempfile.mkdtemp()
+        try:
+            spec_file = Path(tmpdir) / "spec.yaml"
+            spec_file.write_text(MINIMAL_SPEC)
+            settings = CoverageSettings(
+                specs=[
+                    SpecConfig(name="auth", api_urls=["https://auth.example.com"], swagger_path=spec_file),
+                    SpecConfig(name="orders", api_urls=["https://orders.example.com"], swagger_path=spec_file),
+                ]
+            )
+            orch = MultiSpecOrchestrator(settings)
+
+            interactions = [
+                {
+                    "request": {"url": url, "method": "GET", "path": "/users"},
+                    "response": {"status_code": 200},
+                    "test_name": "t",
+                }
+                for url in urls
+            ]
+
+            # Pre-compute expected unmatched (route_interaction has no side effects)
+            expected_unmatched = sum(1 for i in interactions if orch.route_interaction(i) is None)
+
+            # Mock reporters to avoid reporter side effects
+            for reporter in orch.reporters.values():
+                reporter.process_interactions = MagicMock()  # type: ignore[method-assign]
+
+            orch.process_interactions(interactions)
+
+            assert orch.unmatched_count == expected_unmatched
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)

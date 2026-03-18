@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/anatolybobunov/pytest-api-coverage/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolybobunov/pytest-api-coverage/actions/workflows/ci.yml)
 
-Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requests during test execution, compares them against Swagger/OpenAPI specifications, and generates detailed coverage reports.
+Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requests during test execution, compares them against OpenAPI specifications, and generates detailed coverage reports.
 
 ## Features
 
@@ -15,20 +15,25 @@ Pytest plugin for API test coverage analysis. Automatically intercepts HTTP requ
 - **pytest-xdist support** — works with parallel test execution
 - **Origin filtering** — filter coverage by base URL or allowlist
 - **Split by origin** — generate separate coverage per API origin
-
-## Documentation
-
-- [Installation Guide](docs/installation.md)
-- [Usage Guide](docs/usage.md)
-- [Architecture](docs/architecture.md)
+- **Async support** — intercepts both `requests` and `httpx`, including async httpx clients
+- **Multi-spec mode** — measure coverage across multiple APIs in a single test run
 
 ## Installation
 
+Requires **Python 3.11+** and **pytest 7.0+**.
+
 ```bash
-pip install pytest-api-coverage
+# If your project uses requests
+pip install pytest-api-coverage[requests]
+
+# If your project uses httpx
+pip install pytest-api-coverage[httpx]
+
+# If your project uses both
+pip install pytest-api-coverage[requests,httpx]
 ```
 
-See [docs/installation.md](docs/installation.md) for detailed installation instructions.
+See [Installation Guide](docs/installation.md) for details.
 
 ## Quick Start
 
@@ -43,65 +48,24 @@ pytest tests/ --coverage-spec=https://api.example.com/swagger.json
 pytest tests/ -n 4 --coverage-spec=swagger.json
 ```
 
-## How It Works
+## Documentation
 
-1. **Interception**: The plugin monkeypatches `requests.Session.request`, `httpx.Client.request`, and `httpx.AsyncClient.request` to capture all HTTP requests made during test execution.
+| Guide | Description |
+|---|---|
+| [Installation](docs/installation.md) | Requirements, install options, verification |
+| [Usage Guide](docs/usage.md) | CLI options and examples |
+| [Configuration Reference](docs/configuration.md) | pytest.ini setup, multi-spec config |
+| [Coverage Reports](docs/reports.md) | Report formats and result interpretation |
+| [API Reference](docs/api-reference.md) | Public Python API for programmatic access |
+| [Architecture](docs/architecture.md) | How the plugin works internally |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |
+| [Changelog](CHANGELOG.md) | Release history |
+| [Contributing](CONTRIBUTING.md) | Development setup and guidelines |
 
-2. **Collection**: Each request is recorded with HTTP method, URL, path, response status code, and test name.
+## Contributing
 
-3. **Matching**: After tests complete, recorded requests are matched against endpoints defined in the Swagger/OpenAPI specification using path pattern matching (e.g., `/users/{id}` matches `/users/123`).
-
-4. **Reporting**: Coverage reports are generated showing which endpoints were hit, response codes received, and overall coverage percentage.
-
-## CLI Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--coverage-spec` | — | Path to a local OpenAPI/Swagger spec file or URL |
-| `--coverage-spec-name` | — | Label for the spec; used as filename prefix in reports |
-| `--coverage-spec-api-url` | — | Base URL(s) to match requests against (repeatable) |
-| `--coverage-config` | — | Path to YAML/JSON config file for multi-spec mode |
-| `--coverage-output` | `api-coverage-report` | Output directory for reports |
-| `--coverage-format` | `html` | Report formats (comma-separated). Use `all` for json,csv,html |
-| `--coverage-strip-prefix` | — | Path prefixes to strip from request URLs (comma-separated) |
-| `--coverage-split-by-origin` | `false` | Separate coverage per API origin |
-
-See [docs/usage.md](docs/usage.md) for detailed usage examples.
-
-## Development
-
-```bash
-# Install with dev dependencies
-uv sync --group dev
-
-# Run tests
-uv run pytest tests/ -v
-
-# Lint and format
-uv run ruff check src/ tests/
-uv run ruff format src/ tests/
-
-# Type checking
-uv run ty check src/
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
-
-## Build
-
-The package uses [hatchling](https://hatch.pypa.io/) as its build backend.
-
-```bash
-# Build source distribution and wheel (recommended)
-uv build
-
-# Or using python -m build (requires the build package)
-pip install build
-python -m build
-```
-
-Build artifacts (`.tar.gz` and `.whl`) are placed in the `dist/` directory.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
-MIT - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE) for details.

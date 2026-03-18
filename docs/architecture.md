@@ -2,7 +2,9 @@
 
 ## Overview
 
-pytest-api-coverage is a pytest plugin that intercepts HTTP requests during test execution, matches them against a Swagger/OpenAPI specification, and generates coverage reports.
+pytest-api-coverage is a pytest plugin that intercepts HTTP requests during test execution, matches them against an OpenAPI specification, and generates coverage reports.
+
+> For detailed type signatures of the public classes described here, see the [API Reference](api-reference.md).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -56,7 +58,7 @@ src/pytest_api_coverage/
 │   └── multi_spec.py   # Multi-spec config file loader
 ├── schemas/
 │   ├── __init__.py
-│   └── swagger.py      # Swagger/OpenAPI parser
+│   └── swagger.py      # OpenAPI parser
 └── writers/
     ├── __init__.py
     ├── json_writer.py  # JSON report writer
@@ -139,7 +141,7 @@ Features:
 
 ### Schemas (`schemas/`)
 
-Swagger/OpenAPI specification parsing.
+OpenAPI specification parsing.
 
 **SwaggerParser** (`swagger.py`):
 - Parses Swagger 2.0 and OpenAPI 3.x
@@ -179,9 +181,9 @@ class SwaggerSpec:
 Core coverage logic.
 
 **Path Pattern Matching**:
-- Converts swagger paths to regex: `/users/{id}` → `/users/([^/]+)`
+- Converts OpenAPI paths to regex: `/users/{id}` → `/users/([^/]+)`
 - Normalizes actual paths (strips prefixes, removes trailing slashes)
-- Matches HTTP requests to swagger endpoints
+- Matches HTTP requests to OpenAPI endpoints
 
 **Coverage Data Structures**:
 ```python
@@ -212,7 +214,6 @@ class PathCoverage:
 
 **MultiSpec loader** (`multi_spec.py`):
 - `load_multi_spec_config(path)` — parses YAML/JSON config file
-- `_discover_config_file()` — auto-discovers `coverage-config.yaml` / `coverage-config.json`
 
 ### Orchestrator (`orchestrator.py`)
 
@@ -259,7 +260,7 @@ Report output in multiple formats.
 
 4. **Report Generation**
    ```
-   Reporter loads Swagger spec
+   Reporter loads OpenAPI spec
    Reporter processes interactions
    Reporter matches paths to endpoints
    Reporter calculates coverage stats

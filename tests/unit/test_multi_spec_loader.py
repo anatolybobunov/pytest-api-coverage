@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
+from hypothesis import given
+from hypothesis import strategies as st
 
 from pytest_api_coverage.config.multi_spec import (
-    _discover_config_file,
     load_multi_spec_config,
 )
 
@@ -205,54 +208,6 @@ def test_load_empty_specs_list(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# _discover_config_file
-# ---------------------------------------------------------------------------
-
-
-def test_discover_yaml_only(tmp_path: Path) -> None:
-    """_discover_config_file returns YAML path when only coverage-config.yaml exists."""
-    yaml_file = tmp_path / "coverage-config.yaml"
-    yaml_file.write_text("specs: []", encoding="utf-8")
-
-    result = _discover_config_file(tmp_path)
-
-    assert result == yaml_file
-
-
-def test_discover_json_only(tmp_path: Path) -> None:
-    """_discover_config_file returns JSON path when only coverage-config.json exists."""
-    json_file = tmp_path / "coverage-config.json"
-    json_file.write_text('{"specs": []}', encoding="utf-8")
-
-    result = _discover_config_file(tmp_path)
-
-    assert result == json_file
-
-
-def test_discover_both_returns_yaml_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """_discover_config_file returns YAML path when both exist; warning logged."""
-    import logging
-
-    yaml_file = tmp_path / "coverage-config.yaml"
-    yaml_file.write_text("specs: []", encoding="utf-8")
-    json_file = tmp_path / "coverage-config.json"
-    json_file.write_text('{"specs": []}', encoding="utf-8")
-
-    with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
-        result = _discover_config_file(tmp_path)
-
-    assert result == yaml_file
-    assert "warn" in caplog.text.lower() or "yaml" in caplog.text.lower()
-
-
-def test_discover_neither_returns_none(tmp_path: Path) -> None:
-    """_discover_config_file returns None when neither file exists."""
-    result = _discover_config_file(tmp_path)
-
-    assert result is None
-
-
-# ---------------------------------------------------------------------------
 # api_urls type validation
 # ---------------------------------------------------------------------------
 
@@ -300,3 +255,67 @@ class TestApiUrlsTypeValidation:
 
         assert len(specs) == 1
         assert specs[0].api_urls == ["https://api.example.com"]
+
+
+class TestMultiSpecLoaderProperties:
+    """Property-based tests for load_multi_spec_config using Hypothesis."""
+
+    @given(st.integers(min_value=0, max_value=5), st.integers(min_value=0, max_value=3))
+    def test_valid_specs_count(self, n_valid: int, n_invalid: int) -> None:
+        """N valid + M invalid entries → exactly N specs returned."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            valid_entries = [
+                {"name": f"spec-{i}", "api_urls": [f"http://api{i}.example.com"]}
+                for i in range(n_valid)
+            ]
+            # Entries with empty name are skipped by _parse_spec_entry
+            invalid_entries = [
+                {"name": "", "api_urls": [f"http://invalid{i}.example.com"]}
+                for i in range(n_invalid)
+            ]
+            config_data: dict = {"specs": valid_entries + invalid_entries}
+            config_file = Path(tmpdir) / "coverage-config.yaml"
+            config_file.write_text(yaml.dump(config_data))
+
+            specs, _ = load_multi_spec_config(config_file)
+
+            assert len(specs) == n_valid
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    @given(
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz_", min_size=1, max_size=20).filter(
+            lambda s: s != "specs"
+        ),
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=30),
+    )
+    def test_top_level_settings_passthrough(self, key: str, value: str) -> None:
+        """Arbitrary top-level keys (other than 'specs') are returned unchanged."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            config_data = {"specs": [], key: value}
+            config_file = Path(tmpdir) / "coverage-config.yaml"
+            config_file.write_text(yaml.dump(config_data))
+
+            _, top_level = load_multi_spec_config(config_file)
+
+            assert key in top_level
+            assert top_level[key] == value
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    @given(st.binary(min_size=1))
+    def test_parse_failure_safety(self, data: bytes) -> None:
+        """Random bytes written to a .yaml file never cause an exception; result is always a tuple."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            config_file = Path(tmpdir) / "coverage-config.yaml"
+            config_file.write_bytes(data)
+
+            specs, settings = load_multi_spec_config(config_file)
+
+            assert isinstance(specs, list)
+            assert isinstance(settings, dict)
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
