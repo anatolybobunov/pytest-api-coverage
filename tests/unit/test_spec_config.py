@@ -17,9 +17,9 @@ class TestSpecConfigCreation:
 
     def test_spec_config_local_path(self) -> None:
         """SpecConfig with local swagger_path sets swagger_path as Path, swagger_url as None."""
-        sc = SpecConfig(name="auth", api_urls=["https://auth.example.com"], swagger_path="./specs/auth.yaml")
+        sc = SpecConfig(name="auth", api_filters=["https://auth.example.com"], swagger_path="./specs/auth.yaml")
         assert sc.name == "auth"
-        assert sc.api_urls == ["https://auth.example.com"]
+        assert sc.api_filters == ["https://auth.example.com"]
         assert sc.swagger_path == Path("./specs/auth.yaml")
         assert sc.swagger_url is None
 
@@ -27,7 +27,7 @@ class TestSpecConfigCreation:
         """SpecConfig with remote swagger_url sets swagger_url, swagger_path as None."""
         sc = SpecConfig(
             name="orders",
-            api_urls=["https://orders.example.com"],
+            api_filters=["https://orders.example.com"],
             swagger_url="https://orders.example.com/openapi.json",
         )
         assert sc.swagger_url == "https://orders.example.com/openapi.json"
@@ -38,7 +38,7 @@ class TestSpecConfigCreation:
         with pytest.raises(ValueError):
             SpecConfig(
                 name="x",
-                api_urls=["https://x.com"],
+                api_filters=["https://x.com"],
                 swagger_path="./x.yaml",
                 swagger_url="https://x.com/openapi.json",
             )
@@ -46,12 +46,12 @@ class TestSpecConfigCreation:
     def test_spec_config_missing_name_raises(self) -> None:
         """SpecConfig with empty name raises ValueError."""
         with pytest.raises(ValueError):
-            SpecConfig(name="", api_urls=["https://x.com"], swagger_path="./x.yaml")
+            SpecConfig(name="", api_filters=["https://x.com"], swagger_path="./x.yaml")
 
     def test_spec_config_empty_api_urls_raises(self) -> None:
         """SpecConfig with empty api_urls list raises ValueError."""
         with pytest.raises(ValueError):
-            SpecConfig(name="auth", api_urls=[], swagger_path="./auth.yaml")
+            SpecConfig(name="auth", api_filters=[], swagger_path="./auth.yaml")
 
 
 class TestSpecConfigFromDict:
@@ -65,11 +65,11 @@ class TestSpecConfigFromDict:
     def test_spec_config_from_dict_local(self) -> None:
         """from_dict with local swagger_path produces correct SpecConfig."""
         sc = SpecConfig.from_dict(
-            {"name": "auth", "swagger_path": "./auth.yaml", "api_urls": ["https://auth.example.com"]}
+            {"name": "auth", "swagger_path": "./auth.yaml", "api_filters": ["https://auth.example.com"]}
         )
         assert sc.name == "auth"
         assert sc.swagger_path == Path("./auth.yaml")
-        assert sc.api_urls == ["https://auth.example.com"]
+        assert sc.api_filters == ["https://auth.example.com"]
         assert sc.swagger_url is None
 
     def test_spec_config_from_dict_remote(self) -> None:
@@ -78,7 +78,7 @@ class TestSpecConfigFromDict:
             {
                 "name": "orders",
                 "swagger_url": "https://orders.example.com/openapi.json",
-                "api_urls": ["https://orders.example.com"],
+                "api_filters": ["https://orders.example.com"],
             }
         )
         assert sc.name == "orders"
@@ -93,7 +93,7 @@ class TestSpecConfigToDict:
         """to_dict() produces dict that reconstructs via from_dict() correctly."""
         sc = SpecConfig(
             name="auth",
-            api_urls=["https://auth.example.com"],
+            api_filters=["https://auth.example.com"],
             swagger_path="./specs/auth.yaml",
         )
         round_tripped = SpecConfig.from_dict(sc.to_dict())
@@ -103,7 +103,7 @@ class TestSpecConfigToDict:
         """to_dict()['swagger_path'] is str not Path (required for xdist JSON serialisation)."""
         sc = SpecConfig(
             name="auth",
-            api_urls=["https://auth.example.com"],
+            api_filters=["https://auth.example.com"],
             swagger_path="./specs/auth.yaml",
         )
         result = sc.to_dict()
@@ -127,27 +127,27 @@ class TestSpecConfigProperties:
         assert not isinstance(d["swagger_path"], Path)
 
     @given(valid_url_list)
-    def test_empty_name_always_raises(self, api_urls: list[str]) -> None:
+    def test_empty_name_always_raises(self, api_filters: list[str]) -> None:
         """SpecConfig with name='' always raises ValueError regardless of other args."""
         with pytest.raises(ValueError):
-            SpecConfig(name="", api_urls=api_urls)
+            SpecConfig(name="", api_filters=api_filters)
 
     @given(valid_name)
     def test_empty_api_urls_always_raises(self, name: str) -> None:
-        """SpecConfig with api_urls=[] always raises ValueError regardless of name."""
+        """SpecConfig with api_filters=[] always raises ValueError regardless of name."""
         with pytest.raises(ValueError):
-            SpecConfig(name=name, api_urls=[])
+            SpecConfig(name=name, api_filters=[])
 
     @given(valid_name, valid_url_list, valid_path_str, valid_url)
     def test_both_path_and_url_always_raises(
-        self, name: str, api_urls: list[str], path_str: str, url: str
+        self, name: str, api_filters: list[str], path_str: str, url: str
     ) -> None:
         """SpecConfig with both swagger_path and swagger_url always raises ValueError."""
         with pytest.raises(ValueError):
-            SpecConfig(name=name, api_urls=api_urls, swagger_path=path_str, swagger_url=url)
+            SpecConfig(name=name, api_filters=api_filters, swagger_path=path_str, swagger_url=url)
 
     @given(valid_path_str)
     def test_path_normalization(self, path_str: str) -> None:
         """String swagger_path is always normalized to a Path instance."""
-        sc = SpecConfig(name="test", api_urls=["https://example.com"], swagger_path=path_str)
+        sc = SpecConfig(name="test", api_filters=["https://example.com"], swagger_path=path_str)
         assert isinstance(sc.swagger_path, Path)

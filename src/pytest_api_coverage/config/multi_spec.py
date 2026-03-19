@@ -52,16 +52,16 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     if not name:
         logger.warning("Spec entry #%d missing 'name', skipping", index)
         return None
-    api_urls = entry.get("api_urls")
-    if not api_urls:
-        logger.warning("Spec '%s' has empty or missing 'api_urls', skipping", name)
+    api_filters = entry.get("api_filters")
+    if not api_filters:
+        logger.warning("Spec '%s' has empty or missing 'api_filters', skipping", name)
         return None
-    if not isinstance(api_urls, list):
+    if not isinstance(api_filters, list):
         logger.warning(
-            "Spec '%s' has invalid 'api_urls': expected a list, got %s. "
-            "Use YAML list syntax:\n  api_urls:\n    - \"https://...\"",
+            "Spec '%s' has invalid 'api_filters': expected a list, got %s. "
+            "Use YAML list syntax:\n  api_filters:\n    - \"https://...\"",
             name,
-            type(api_urls).__name__,
+            type(api_filters).__name__,
         )
         return None
     swagger_path = entry.get("swagger_path")
@@ -69,6 +69,6 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     if swagger_path and swagger_url:
         logger.warning("Spec '%s' has both 'swagger_path' and 'swagger_url', skipping", name)
         return None
-    return SpecConfig(name=name, api_urls=api_urls, swagger_path=swagger_path, swagger_url=swagger_url)
+    return SpecConfig(name=name, api_filters=api_filters, swagger_path=swagger_path, swagger_url=swagger_url)
 
 

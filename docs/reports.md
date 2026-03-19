@@ -154,7 +154,7 @@ Common causes:
 - **URL prefix mismatch.** Your API serves paths like `/v1/users` but the spec defines `/users`. Fix with `--coverage-strip-prefix=/v1`.
 - **Path parameters not recognized.** The spec defines `/users/{id}` but requests hit `/users/profile/settings` — a deeper path structure the pattern does not match. Verify the spec reflects your actual routes.
 - **Endpoint not in spec.** Your tests exercise an endpoint that exists in the API but is missing from the OpenAPI spec. Update the spec to include it.
-- **Origin mismatch.** When using `--coverage-spec-api-url` or a multi-spec config, requests to origins not listed in `api_urls` are excluded before matching. Confirm the configured origins match the actual base URLs your tests call.
+- **Filter mismatch.** When using `--coverage-url-filter` or a multi-spec config, requests not matching any `api_filters` substring are excluded before matching. Confirm the configured filters match the actual base URLs your tests call (the filter is a case-insensitive substring of the full request URL).
 
 Unmatched requests are not failures on their own, but a non-zero count usually signals a configuration issue worth resolving before trusting the coverage percentage.
 
@@ -207,4 +207,3 @@ All files are written to the output directory configured by `--coverage-output` 
 ## See Also
 
 - [Usage Guide](usage.md) — `--coverage-format` and `--coverage-output` options
-- [CI Integration](ci-integration.md) — automating coverage thresholds

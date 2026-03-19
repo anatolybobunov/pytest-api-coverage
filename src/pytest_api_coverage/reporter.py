@@ -8,7 +8,7 @@ from typing import Any
 
 from pytest_api_coverage.models import EndpointCoverage, MethodCoverage, PathCoverage
 from pytest_api_coverage.schemas import SwaggerSpec
-from pytest_api_coverage.utils import normalize_origin
+from pytest_api_coverage.utils import normalize_origin, url_matches_filter
 
 logger = logging.getLogger("pytest_api_coverage")
 
@@ -35,8 +35,8 @@ class CoverageReporter:
             split_by_origin: Generate separate coverage per origin
         """
         self.swagger_spec = swagger_spec
-        self.base_url = normalize_origin(base_url) if base_url else None
-        self.include_base_urls = {normalize_origin(u) for u in (include_base_urls or set()) if u}
+        self.base_url = base_url
+        self.include_base_urls = set(include_base_urls or set())
         self.strip_prefixes = strip_prefixes or []
         self.split_by_origin = split_by_origin
 
@@ -156,15 +156,13 @@ class CoverageReporter:
         if not self.base_url and not self.include_base_urls:
             return True
 
-        origin = normalize_origin(url)
-
-        # Single origin filter
+        # Single filter
         if self.base_url:
-            return origin == self.base_url
+            return url_matches_filter(url, self.base_url)
 
         # Allowlist filter
         if self.include_base_urls:
-            return origin in self.include_base_urls
+            return any(url_matches_filter(url, f) for f in self.include_base_urls)
 
         return True
 

@@ -26,11 +26,11 @@ COVERAGE_CONFIG_TEMPLATE = """
 specs:
   - name: {name1}
     swagger_path: {path1}
-    api_urls:
+    api_filters:
       - {url1}
   - name: {name2}
     swagger_path: {path2}
-    api_urls:
+    api_filters:
       - {url2}
 """
 
@@ -73,7 +73,7 @@ def test_request_to_unknown_url_no_error(pytester: pytest.Pytester) -> None:
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
     config_file.write_text(
-        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_urls:\n      - https://auth.example.com\n"
+        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_filters:\n      - https://auth.example.com\n"
     )
     pytester.makepyfile("""
         def test_placeholder():
@@ -114,7 +114,7 @@ def test_zero_matched_requests_writes_files(pytester: pytest.Pytester) -> None:
     spec.write_text(MINIMAL_SPEC)
     config_file = pytester.path / "coverage-config.yaml"
     config_file.write_text(
-        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_urls:\n      - https://auth.example.com\n"
+        "specs:\n  - name: auth\n    swagger_path: auth.yaml\n    api_filters:\n      - https://auth.example.com\n"
     )
     pytester.makepyfile("""
         def test_placeholder():

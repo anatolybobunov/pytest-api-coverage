@@ -26,10 +26,10 @@ def two_valid_specs_yaml(tmp_path: Path) -> Path:
     """YAML config file with two valid spec entries."""
     data = {
         "specs": [
-            {"name": "users-api", "api_urls": ["http://localhost:8000"], "swagger_path": "users.yaml"},
+            {"name": "users-api", "api_filters": ["http://localhost:8000"], "swagger_path": "users.yaml"},
             {
                 "name": "orders-api",
-                "api_urls": ["http://localhost:8001"],
+                "api_filters": ["http://localhost:8001"],
                 "swagger_url": "http://specs.example.com/orders.yaml",
             },
         ]
@@ -44,10 +44,10 @@ def two_valid_specs_json(tmp_path: Path) -> Path:
     """JSON config file with two valid spec entries."""
     data = {
         "specs": [
-            {"name": "users-api", "api_urls": ["http://localhost:8000"], "swagger_path": "users.yaml"},
+            {"name": "users-api", "api_filters": ["http://localhost:8000"], "swagger_path": "users.yaml"},
             {
                 "name": "orders-api",
-                "api_urls": ["http://localhost:8001"],
+                "api_filters": ["http://localhost:8001"],
                 "swagger_url": "http://specs.example.com/orders.yaml",
             },
         ]
@@ -64,7 +64,7 @@ def yaml_with_top_level_settings(tmp_path: Path) -> Path:
         "output_dir": "reports/api",
         "formats": ["json", "html"],
         "specs": [
-            {"name": "users-api", "api_urls": ["http://localhost:8000"]},
+            {"name": "users-api", "api_filters": ["http://localhost:8000"]},
         ],
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -113,8 +113,8 @@ def test_load_skips_missing_name(tmp_path: Path, caplog: pytest.LogCaptureFixtur
 
     data = {
         "specs": [
-            {"api_urls": ["http://localhost:8000"]},  # missing name
-            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
+            {"api_filters": ["http://localhost:8000"]},  # missing name
+            {"name": "orders-api", "api_filters": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -134,8 +134,8 @@ def test_load_skips_empty_urls(tmp_path: Path, caplog: pytest.LogCaptureFixture)
 
     data = {
         "specs": [
-            {"name": "users-api", "api_urls": []},  # empty api_urls
-            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
+            {"name": "users-api", "api_filters": []},  # empty api_urls
+            {"name": "orders-api", "api_filters": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -157,11 +157,11 @@ def test_load_skips_both_path_and_url(tmp_path: Path, caplog: pytest.LogCaptureF
         "specs": [
             {
                 "name": "users-api",
-                "api_urls": ["http://localhost:8000"],
+                "api_filters": ["http://localhost:8000"],
                 "swagger_path": "spec.yaml",
                 "swagger_url": "http://example.com/spec.yaml",
             },
-            {"name": "orders-api", "api_urls": ["http://localhost:8001"]},
+            {"name": "orders-api", "api_filters": ["http://localhost:8001"]},
         ]
     }
     config_file = tmp_path / "coverage-config.yaml"
@@ -224,7 +224,7 @@ class TestApiUrlsTypeValidation:
                 {
                     "name": "users-api",
                     "swagger_path": "users.yaml",
-                    "api_urls": "https://api.example.com",  # string, not list
+                    "api_filters": "https://api.example.com",  # string, not list
                 }
             ]
         }
@@ -244,7 +244,7 @@ class TestApiUrlsTypeValidation:
                 {
                     "name": "users-api",
                     "swagger_path": "users.yaml",
-                    "api_urls": ["https://api.example.com"],
+                    "api_filters": ["https://api.example.com"],
                 }
             ]
         }
@@ -254,7 +254,7 @@ class TestApiUrlsTypeValidation:
         specs, _ = load_multi_spec_config(config_file)
 
         assert len(specs) == 1
-        assert specs[0].api_urls == ["https://api.example.com"]
+        assert specs[0].api_filters == ["https://api.example.com"]
 
 
 class TestMultiSpecLoaderProperties:
@@ -266,12 +266,12 @@ class TestMultiSpecLoaderProperties:
         tmpdir = tempfile.mkdtemp()
         try:
             valid_entries = [
-                {"name": f"spec-{i}", "api_urls": [f"http://api{i}.example.com"]}
+                {"name": f"spec-{i}", "api_filters": [f"http://api{i}.example.com"]}
                 for i in range(n_valid)
             ]
             # Entries with empty name are skipped by _parse_spec_entry
             invalid_entries = [
-                {"name": "", "api_urls": [f"http://invalid{i}.example.com"]}
+                {"name": "", "api_filters": [f"http://invalid{i}.example.com"]}
                 for i in range(n_invalid)
             ]
             config_data: dict = {"specs": valid_entries + invalid_entries}

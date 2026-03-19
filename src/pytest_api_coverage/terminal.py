@@ -65,6 +65,7 @@ def print_terminal_summary(
 def print_multi_spec_summary(
     terminalreporter: TerminalReporter,
     orchestrator: MultiSpecOrchestrator,
+    reports: dict[str, Any] | None = None,
     record_errors: int = 0,
     failed_specs: list[tuple[str, str]] | None = None,
 ) -> None:
@@ -77,6 +78,8 @@ def print_multi_spec_summary(
     Args:
         terminalreporter: pytest TerminalReporter
         orchestrator: MultiSpecOrchestrator with all spec reporters
+        reports: Pre-generated report data from generate_all_reports(). When provided,
+            avoids regenerating reports for the terminal summary.
         record_errors: Number of HTTP recording errors encountered during the session.
         failed_specs: Optional list of (spec_name, error_message) pairs for specs
             that could not be loaded.
@@ -97,7 +100,10 @@ def print_multi_spec_summary(
         reporter = reporters.get(spec.name)
         if reporter is None:
             continue
-        summary = reporter.generate_report()["summary"]
+        if reports is not None and spec.name in reports:
+            summary = reports[spec.name]["summary"]
+        else:
+            summary = reporter.generate_report()["summary"]
         formats = orchestrator.settings.formats
         if "html" in formats:
             ext = "html"

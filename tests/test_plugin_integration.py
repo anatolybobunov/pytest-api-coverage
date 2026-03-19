@@ -1,39 +1,164 @@
-"""Integration test for pytest plugin."""
+"""Integration tests for the pytest-api-coverage plugin using pytester."""
 
-import requests
-import responses
+import textwrap
 
 
-@responses.activate
-def test_http_request_is_captured():
-    """Test that HTTP requests are captured by the plugin."""
-    responses.add(
-        responses.GET,
-        "https://httpbin.org/get",
-        json={"args": {"test": "value"}},
-        status=200,
+def test_plugin_active_with_coverage_spec(pytester):
+    """Plugin activates and records requests when --coverage-spec is provided."""
+    spec_file = pytester.makefile(
+        ".yaml",
+        spec=textwrap.dedent("""\
+            openapi: "3.0.0"
+            info:
+              title: Test API
+              version: "1.0"
+            paths:
+              /get:
+                get:
+                  responses:
+                    "200":
+                      description: OK
+        """),
     )
 
-    response = requests.get("https://httpbin.org/get", params={"test": "value"})
+    pytester.makepyfile(
+        textwrap.dedent("""\
+            import requests
+            import responses as resp
 
-    assert response.status_code == 200
-    assert response.json()["args"]["test"] == "value"
-
-
-@responses.activate
-def test_post_request_with_json():
-    """Test POST request with JSON body."""
-    responses.add(
-        responses.POST,
-        "https://httpbin.org/post",
-        json={"json": {"name": "pytest", "value": 123}},
-        status=200,
+            @resp.activate
+            def test_get():
+                resp.add(resp.GET, "https://httpbin.org/get", json={}, status=200)
+                r = requests.get("https://httpbin.org/get")
+                assert r.status_code == 200
+        """)
     )
 
-    response = requests.post(
-        "https://httpbin.org/post",
-        json={"name": "pytest", "value": 123},
+    result = pytester.runpytest(
+        f"--coverage-spec={spec_file}",
+        "--coverage-url-filter=httpbin.org",
+        "--coverage-format=json",
+    )
+    result.assert_outcomes(passed=1)
+    result.stdout.fnmatch_lines(["*API Coverage Summary*"])
+
+
+def test_plugin_inactive_without_flags(pytester):
+    """Plugin does not produce output when no coverage flags are given."""
+    pytester.makepyfile(
+        textwrap.dedent("""\
+            def test_noop():
+                pass
+        """)
     )
 
-    assert response.status_code == 200
-    assert response.json()["json"]["name"] == "pytest"
+    result = pytester.runpytest()
+    result.assert_outcomes(passed=1)
+    assert "API Coverage Summary" not in result.stdout.str()
+
+
+def test_plugin_multi_spec_with_config(pytester):
+    """Plugin handles --coverage-config with multiple specs."""
+    spec_a = pytester.makefile(
+        ".yaml",
+        spec_a=textwrap.dedent("""\
+            openapi: "3.0.0"
+            info:
+              title: Service A
+              version: "1.0"
+            paths:
+              /users:
+                get:
+                  responses:
+                    "200":
+                      description: OK
+        """),
+    )
+
+    config_file = pytester.makefile(
+        ".yaml",
+        coverage_config=textwrap.dedent(f"""\
+            specs:
+              - name: svc-a
+                api_filters:
+                  - https://svc-a.example.com
+                swagger_path: {spec_a}
+        """),
+    )
+
+    pytester.makepyfile(
+        textwrap.dedent("""\
+            def test_noop():
+                pass
+        """)
+    )
+
+    result = pytester.runpytest(f"--coverage-config={config_file}")
+    result.assert_outcomes(passed=1)
+    result.stdout.fnmatch_lines(["*API Coverage Summary*"])
+
+
+def test_spec_name_with_config_filters_spec(pytester):
+    """--coverage-spec-name with --coverage-config selects only the named spec."""
+    spec_a = pytester.makefile(
+        ".yaml",
+        spec_a=textwrap.dedent("""\
+            openapi: "3.0.0"
+            info:
+              title: Service A
+              version: "1.0"
+            paths:
+              /users:
+                get:
+                  responses:
+                    "200":
+                      description: OK
+        """),
+    )
+    spec_b = pytester.makefile(
+        ".yaml",
+        spec_b=textwrap.dedent("""\
+            openapi: "3.0.0"
+            info:
+              title: Service B
+              version: "1.0"
+            paths:
+              /orders:
+                get:
+                  responses:
+                    "200":
+                      description: OK
+        """),
+    )
+
+    config_file = pytester.makefile(
+        ".yaml",
+        coverage_config=textwrap.dedent(f"""\
+            specs:
+              - name: svc-a
+                api_filters:
+                  - https://svc-a.example.com
+                swagger_path: {spec_a}
+              - name: svc-b
+                api_filters:
+                  - https://svc-b.example.com
+                swagger_path: {spec_b}
+        """),
+    )
+
+    pytester.makepyfile(
+        textwrap.dedent("""\
+            def test_noop():
+                pass
+        """)
+    )
+
+    result = pytester.runpytest(
+        f"--coverage-config={config_file}",
+        "--coverage-spec-name=svc-a",
+    )
+    result.assert_outcomes(passed=1)
+    result.stdout.fnmatch_lines(["*API Coverage Summary*"])
+    # Only svc-a should appear in the output
+    assert "svc-a" in result.stdout.str()
+    assert "svc-b" not in result.stdout.str()

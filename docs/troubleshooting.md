@@ -4,17 +4,19 @@
 
 **Symptom:** Report shows 0% coverage and "0 HTTP requests captured".
 
-**Cause 1: Mocking libraries intercept at the socket level**
+**Cause 1: Mocking libraries intercept below the patched layer**
 
-The following libraries are incompatible with pytest-api-coverage:
-- `responses` — intercepts at the urllib3 level
-- `respx` — intercepts the httpx transport
-- `vcrpy` / `pytest-recording` — intercept at the urllib3 level
-- `pytest-httpserver` — fully replaces the network stack
+**Fully incompatible** — these libraries replace the network stack entirely; no real requests are made, so nothing can be captured:
 
-**Solution:** pytest-api-coverage patches `requests.Session.request` and `httpx.Client.request`.
-If tests use mocking at a lower level, requests will not be captured.
-Use a real server (test environment) or ensure requests go through the `requests`/`httpx` API.
+- `pytest-httpserver` — binds a real local server but replaces the HTTP response stack
+
+**Compatible with caveats** — these libraries work alongside pytest-api-coverage, but the recorded interactions reflect the mocked responses, not a real server. Coverage numbers will be based on the mock data:
+
+- `responses` — intercepts at the urllib3 level; requests still pass through `requests.Session.request`, so the plugin captures the call (with the mocked response)
+- `respx` — intercepts the httpx transport; calls still pass through `httpx.Client.request`
+- `vcrpy` / `pytest-recording` — replays cassettes through the urllib3 layer; calls are still intercepted by the plugin at the `requests`/`httpx` level
+
+**Solution:** Use a real test server when you need accurate API coverage data. With mock libraries (except `pytest-httpserver`), you will see coverage numbers, but they reflect your mock definitions rather than a live service.
 
 **Cause 2: Tests do not make HTTP requests**
 
@@ -45,7 +47,7 @@ Make sure the path is relative to the directory where pytest is run (usually the
 
 Possible causes:
 - URL contains a base path (e.g. `/api/v1/users`) but the spec defines the path as `/users`. Use `--coverage-strip-prefix=/api/v1`.
-- The request URL points to a different origin — use `--coverage-spec-api-url` to filter.
+- The request URL does not match any configured filter — use `--coverage-url-filter` to specify a substring to match against request URLs.
 
 ## Conflict with pytest-httpx or responses
 
@@ -58,16 +60,20 @@ This is the correct behaviour when testing API contracts.
 If workers terminated with an error, their data is lost.
 Check for warnings like `"Worker gw0 finished without coverage_data"` in the pytest output.
 
-### `--coverage-spec-api-url` has no effect
+### `--coverage-url-filter` has no effect
 
-**Symptom:** You passed `--coverage-spec-api-url` but requests are not matched against that URL prefix.
+**Symptom:** You passed `--coverage-url-filter` but requests are not matched against that filter.
 
-**Cause:** `--coverage-spec-api-url` is ignored unless used together with `--coverage-spec` (and optionally `--coverage-spec-name`). In multi-spec config file mode, define `api_urls` per spec in the config file instead.
+**Cause:** `--coverage-url-filter` is ignored unless used together with `--coverage-spec` (and optionally `--coverage-spec-name`). In multi-spec config file mode, define `api_filters` per spec in the config file instead.
 
-**Fix:** Always combine with `--coverage-spec`:
+**Fix:** Always combine with `--coverage-spec`. The filter value is a substring matched against the full request URL (case-insensitive):
 
 ```bash
-pytest --coverage-spec=openapi.yaml --coverage-spec-api-url=https://api.example.com
+# Match by full origin (http or https)
+pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
+
+# Match by partial hostname (matches both http and https)
+pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
 ```
 
 ### HTTP requests not captured, no error shown

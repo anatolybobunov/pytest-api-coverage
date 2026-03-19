@@ -242,14 +242,14 @@ class TestSpecConfigRoundTrip:
         from pytest_api_coverage.config.settings import SpecConfig
 
         original = SpecConfig(
-            name="auth", api_urls=["https://auth.example.com"], swagger_path=Path("/tmp/auth.yaml")
+            name="auth", api_filters=["https://auth.example.com"], swagger_path=Path("/tmp/auth.yaml")
         )
         data = original.to_dict()
         # swagger_path must be str in dict (JSON-safe)
         assert isinstance(data["swagger_path"], str)
         restored = SpecConfig.from_dict(data)
         assert restored.name == "auth"
-        assert restored.api_urls == ["https://auth.example.com"]
+        assert restored.api_filters == ["https://auth.example.com"]
         assert restored.swagger_path == Path("/tmp/auth.yaml")
         assert restored.swagger_url is None
 
@@ -258,7 +258,7 @@ class TestSpecConfigRoundTrip:
 
         original = SpecConfig(
             name="orders",
-            api_urls=["https://orders.example.com/api"],
+            api_filters=["https://orders.example.com/api"],
             swagger_url="https://remote.example.com/spec.yaml",
         )
         data = original.to_dict()
@@ -270,14 +270,14 @@ class TestSpecConfigRoundTrip:
     def test_round_trip_multi_url(self):
         from pytest_api_coverage.config.settings import SpecConfig
 
-        original = SpecConfig(name="svc", api_urls=["https://a.example.com", "https://b.example.com"])
+        original = SpecConfig(name="svc", api_filters=["https://a.example.com", "https://b.example.com"])
         restored = SpecConfig.from_dict(original.to_dict())
-        assert restored.api_urls == ["https://a.example.com", "https://b.example.com"]
+        assert restored.api_filters == ["https://a.example.com", "https://b.example.com"]
 
     def test_swagger_path_none_round_trips(self):
         from pytest_api_coverage.config.settings import SpecConfig
 
-        original = SpecConfig(name="svc", api_urls=["https://svc.example.com"])
+        original = SpecConfig(name="svc", api_filters=["https://svc.example.com"])
         data = original.to_dict()
         assert data["swagger_path"] is None
         restored = SpecConfig.from_dict(data)
@@ -315,7 +315,7 @@ class TestCoverageSettingsFromPytestConfig:
             "coverage_split_by_origin": False,
             "coverage_config": None,
             "coverage_spec_name": None,
-            "coverage_spec_api_url": None,
+            "coverage_url_filter": None,
         }.get(key, default)
         # rootpath must be a real Path so _discover_config_file can use / operator
         mock_config.rootpath = Path("/tmp")

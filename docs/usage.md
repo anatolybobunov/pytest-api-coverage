@@ -24,7 +24,7 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 | `--coverage-split-by-origin` | `false` | Split coverage by origin URL |
 | `--coverage-config` | — | Path to multi-spec config file |
 | `--coverage-spec-name` | — | Label for single CLI spec, or filter from config |
-| `--coverage-spec-api-url` | — | API base URL(s) to filter recorded requests |
+| `--coverage-url-filter` | — | Filter string(s) for matching request URLs (substring match) |
 
 > For persisting options via `pytest.ini` or `pyproject.toml`, and for multi-spec configuration, see the [Configuration Reference](configuration.md).
 

@@ -33,7 +33,7 @@ valid_path_str = st.from_regex(
 def valid_spec_config(draw: st.DrawFn) -> SpecConfig:
     """Build a valid SpecConfig with either swagger_path or swagger_url (never both)."""
     name = draw(valid_name)
-    api_urls = draw(valid_url_list)
+    api_filters = draw(valid_url_list)
     choice = draw(st.sampled_from(["path", "url", "none"]))
     if choice == "path":
         swagger_path: str | None = draw(valid_path_str)
@@ -44,7 +44,7 @@ def valid_spec_config(draw: st.DrawFn) -> SpecConfig:
     else:
         swagger_path = None
         swagger_url = None
-    return SpecConfig(name=name, api_urls=api_urls, swagger_path=swagger_path, swagger_url=swagger_url)
+    return SpecConfig(name=name, api_filters=api_filters, swagger_path=swagger_path, swagger_url=swagger_url)
 
 
 @st.composite

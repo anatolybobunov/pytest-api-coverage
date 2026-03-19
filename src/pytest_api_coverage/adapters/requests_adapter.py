@@ -149,8 +149,10 @@ def _record_requests_interaction(
     body = kwargs.get("json") or kwargs.get("data")
 
     # Build request model
+    # Use response.request.method to capture the final method after any redirects
+    actual_method = response.request.method if response.request is not None else method
     http_request = HTTPRequest(
-        method=method.upper(),
+        method=actual_method.upper(),
         url=final_url,
         path=final_parsed.path or "/",
         host=final_parsed.netloc,

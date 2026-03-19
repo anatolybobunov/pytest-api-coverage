@@ -195,31 +195,6 @@ from pytest_api_coverage import HTTPInterceptor
 assert isinstance(my_adapter, HTTPInterceptor)
 ```
 
----
-
-## Example: Accessing Coverage Data Programmatically
-
-The plugin exposes the `CoverageCollector` instance via the `api_coverage_collector` fixture. You can use it in a `conftest.py` to inspect or post-process coverage data at the end of a test.
-
-```python
-# conftest.py
-import pytest
-from pytest_api_coverage import CoverageCollector
-
-
-@pytest.fixture(autouse=True)
-def log_uncovered_endpoints(api_coverage_collector: CoverageCollector) -> None:
-    yield
-    data = api_coverage_collector.get_data()
-    for interaction in data:
-        if interaction["response"]["status_code"] >= 500:
-            print(
-                f"Server error on {interaction['request']['method']} "
-                f"{interaction['request']['path']}: "
-                f"{interaction['response']['status_code']}"
-            )
-```
-
 If you need to build a custom report from the structured model types rather than raw dicts, use `get_data()` to retrieve the serialized interactions and reconstruct them, or access `_data` directly (internal, unsupported) after calling `_drain_queue()`.
 
 ---

@@ -16,7 +16,7 @@ _COVERAGE_CONFIG_ONE_SPEC = """\
 specs:
   - name: auth
     swagger_path: ./auth.yaml
-    api_urls:
+    api_filters:
       - https://auth.example.com
 """
 
@@ -27,7 +27,7 @@ _COVERAGE_CONFIG_JSON_ONE_SPEC = """\
     {
       "name": "orders",
       "swagger_url": "https://orders.example.com/openapi.json",
-      "api_urls": ["https://orders.example.com"]
+      "api_filters": ["https://orders.example.com"]
     }
   ]
 }

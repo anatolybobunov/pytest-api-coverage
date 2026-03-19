@@ -204,7 +204,7 @@ class PathCoverage:
 
 **Origin Filtering**:
 - `split_by_origin` - separate coverage per origin
-- `include_base_urls` (internal) - allowlist of origins, used by orchestrator via `api_urls`
+- `include_base_urls` (internal) - allowlist of filter strings, used by orchestrator via `api_filters`
 
 ### Config (`config/`)
 

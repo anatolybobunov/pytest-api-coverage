@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import urlparse
 
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 from pytest_api_coverage.reporter import CoverageReporter
 from pytest_api_coverage.schemas import SwaggerParser
-from pytest_api_coverage.utils import normalize_origin
+from pytest_api_coverage.utils import matches_filter_value
 from pytest_api_coverage.writers import write_reports
 
 logger = logging.getLogger("pytest_api_coverage")
@@ -45,10 +44,9 @@ class MultiSpecOrchestrator:
                 if source is None:
                     raise ValueError(f"Spec '{spec.name}' has no swagger_url or swagger_path configured")
                 swagger_spec = SwaggerParser.parse(source)
-                origins = {normalize_origin(u) for u in spec.api_urls}
                 reporter = CoverageReporter(
                     swagger_spec,
-                    include_base_urls=origins,
+                    include_base_urls=set(spec.api_filters),
                 )
                 self._reporters[spec.name] = reporter
                 self._specs.append(spec)
@@ -57,42 +55,26 @@ class MultiSpecOrchestrator:
                 self._failed_specs.append((spec.name, str(e)))
 
     def _warn_overlapping_urls(self) -> None:
-        """Check for URL overlap across specs and warn. Uses normalized origin for comparison."""
+        """Check for URL overlap across specs and warn."""
         seen: dict[str, str] = {}
         for spec in self._specs:
-            for url in spec.api_urls:
-                normalized = normalize_origin(url)
-                if normalized in seen:
+            for filter_value in spec.api_filters:
+                if filter_value in seen:
                     logger.warning(
                         "URL '%s' appears in both '%s' and '%s' specs. First-match-wins applies.",
-                        normalized,
-                        seen[normalized],
+                        filter_value,
+                        seen[filter_value],
                         spec.name,
                     )
                 else:
-                    seen[normalized] = spec.name
+                    seen[filter_value] = spec.name
 
-    def _matches_spec(self, request_url: str, spec_url: str) -> bool:
-        """Check if request_url matches spec_url (origin + path prefix).
+    def _matches_spec(self, request_url: str, filter_value: str) -> bool:
+        """Check if request_url matches filter_value (origin + path prefix).
 
-        Trailing-slash safe: ``/auth`` matches ``/auth/users`` but NOT
-        ``/authentic`` (the ``+ "/"`` guard prevents partial-segment matches).
+        Delegates to :func:`pytest_api_coverage.utils.matches_filter_value`.
         """
-        parsed_req = urlparse(request_url)
-        parsed_spec = urlparse(spec_url)
-
-        req_origin = normalize_origin(request_url)
-        spec_origin = f"{parsed_spec.scheme}://{parsed_spec.netloc}"
-
-        if req_origin != spec_origin:
-            return False
-
-        spec_path = parsed_spec.path or "/"
-        req_path = parsed_req.path or "/"
-
-        # Trailing-slash-safe prefix check: /auth must match /auth/users but NOT /authentic
-        normalized_spec = spec_path.rstrip("/")
-        return req_path == spec_path or req_path.startswith(normalized_spec + "/")
+        return matches_filter_value(request_url, filter_value)
 
     # ------------------------------------------------------------------
     # Public API
@@ -121,8 +103,8 @@ class MultiSpecOrchestrator:
         """
         url = interaction.get("request", {}).get("url", "")
         for spec in self._specs:
-            for spec_url in spec.api_urls:
-                if self._matches_spec(url, spec_url):
+            for filter_value in spec.api_filters:
+                if self._matches_spec(url, filter_value):
                     return spec.name
         return None
 
@@ -138,16 +120,21 @@ class MultiSpecOrchestrator:
             else:
                 self.unmatched_count += 1
 
-    def generate_all_reports(self) -> None:
-        """Write prefixed report files for each loaded spec.
+    def generate_all_reports(self) -> dict[str, Any]:
+        """Write prefixed report files for each loaded spec and return the generated data.
 
         A no-op when ``_specs`` is empty (e.g. all specs failed to load).
+
+        Returns:
+            Mapping of spec name to its generated report dict.
         """
+        all_reports: dict[str, Any] = {}
         for spec in self._specs:
             reporter = self._reporters.get(spec.name)
             if reporter is None:
                 continue
             report_data = reporter.generate_report()
+            all_reports[spec.name] = report_data
             written = write_reports(
                 report_data,
                 self.settings.output_dir,
@@ -156,3 +143,4 @@ class MultiSpecOrchestrator:
             )
             if written:
                 logger.info("Reports for '%s' written to: %s", spec.name, self.settings.output_dir)
+        return all_reports

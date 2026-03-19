@@ -59,11 +59,11 @@ def _write_two_spec_config(pytester: pytest.Pytester) -> None:
         "specs:\n"
         "  - name: auth\n"
         "    swagger_path: auth.yaml\n"
-        "    api_urls:\n"
+        "    api_filters:\n"
         "      - https://auth.example.com\n"
         "  - name: orders\n"
         "    swagger_path: orders.yaml\n"
-        "    api_urls:\n"
+        "    api_filters:\n"
         "      - https://orders.example.com\n"
     )
 

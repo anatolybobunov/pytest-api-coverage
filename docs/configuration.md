@@ -39,11 +39,11 @@ formats: [html, json]
 specs:
   - name: users-api
     swagger_path: docs/users.yaml
-    api_urls:
+    api_filters:
       - http://localhost:8001
   - name: payments-api
     swagger_url: https://payments.internal/openapi.json
-    api_urls:
+    api_filters:
       - http://localhost:8002
 ```
 
@@ -64,12 +64,12 @@ The file can also be written as JSON (`coverage-config.json`) with the same stru
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Unique identifier for this spec; used in output filenames and terminal summary |
-| `api_urls` | list of strings | yes | URL prefixes matched against intercepted requests; only requests with a matching prefix are attributed to this spec |
+| `api_filters` | list of strings | yes | Filter strings matched against intercepted request URLs (substring match, case-insensitive); only matching requests are attributed to this spec |
 | `swagger_path` | string | no | Path to a local OpenAPI/Swagger spec file (mutually exclusive with `swagger_url`) |
 | `swagger_url` | string | no | URL to a remote OpenAPI/Swagger spec (mutually exclusive with `swagger_path`) |
 
 Each spec entry must provide exactly one of `swagger_path` or `swagger_url`. Entries
-missing `name`, `api_urls`, or that supply both `swagger_path` and `swagger_url` are
+missing `name`, `api_filters`, or that supply both `swagger_path` and `swagger_url` are
 skipped with a warning and do not abort the run.
 
 **Important:** Only `output_dir`, `formats`, and `specs` are honoured at the top level of
@@ -88,8 +88,8 @@ pytest --coverage-config=path/to/config.yaml
 
 | Scenario | What `--coverage-spec-name` does |
 |---|---|
-| Used with `--coverage-spec` | Labels the spec; the name appears in the output filename and terminal summary. `--coverage-spec-api-url` is required to filter which requests are attributed to it. |
-| Used with `--coverage-config` | Filters the config file to run only the spec whose `name` matches; all other specs are ignored. `--coverage-spec-api-url` is ignored (a warning is emitted). |
+| Used with `--coverage-spec` | Labels the spec; the name appears in the output filename and terminal summary. `--coverage-url-filter` is required to filter which requests are attributed to it. |
+| Used with `--coverage-config` | Filters the config file to run only the spec whose `name` matches; all other specs are ignored. `--coverage-url-filter` is ignored (a warning is emitted). |
 | Used alone (no `--coverage-spec` and no config file) | Error: `--coverage-spec-name requires --coverage-spec` |
 
 **Labelling a single spec via CLI:**
@@ -98,7 +98,7 @@ pytest --coverage-config=path/to/config.yaml
 pytest tests/ \
   --coverage-spec=api/swagger.yaml \
   --coverage-spec-name=users-api \
-  --coverage-spec-api-url=http://localhost:8001
+  --coverage-url-filter=http://localhost:8001
 ```
 
 **Filtering a config file to one spec:**

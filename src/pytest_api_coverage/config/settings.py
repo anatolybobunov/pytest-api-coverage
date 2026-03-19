@@ -25,7 +25,7 @@ class SpecConfig:
     """
 
     name: str
-    api_urls: list[str]
+    api_filters: list[str]
     swagger_path: str | Path | None = None
     swagger_url: str | None = None
 
@@ -37,8 +37,8 @@ class SpecConfig:
         if self.swagger_path is not None and self.swagger_url is not None:
             raise ValueError("SpecConfig 'swagger_path' and 'swagger_url' are mutually exclusive; provide only one")
 
-        if not self.api_urls:
-            raise ValueError("SpecConfig 'api_urls' must be a non-empty list")
+        if not self.api_filters:
+            raise ValueError("SpecConfig 'api_filters' must be a non-empty list")
 
         # Normalise path to Path object
         if self.swagger_path is not None and isinstance(self.swagger_path, str):
@@ -50,7 +50,7 @@ class SpecConfig:
 
         Args:
             data: Dictionary with spec configuration values.
-                  Must contain 'name' and 'api_urls' keys.
+                  Must contain 'name' and 'api_filters' keys.
 
         Returns:
             SpecConfig instance
@@ -58,11 +58,13 @@ class SpecConfig:
         Raises:
             ValueError: If required fields are missing or invalid
         """
-        if "api_urls" not in data:
-            raise ValueError("SpecConfig dict must contain 'api_urls' key")
+        if "name" not in data:
+            raise ValueError("SpecConfig dict must contain 'name' key")
+        if "api_filters" not in data:
+            raise ValueError("SpecConfig dict must contain 'api_filters' key")
         return cls(
             name=data["name"],
-            api_urls=data["api_urls"],
+            api_filters=data["api_filters"],
             swagger_path=data.get("swagger_path"),
             swagger_url=data.get("swagger_url"),
         )
@@ -78,7 +80,7 @@ class SpecConfig:
         """
         return {
             "name": self.name,
-            "api_urls": self.api_urls,
+            "api_filters": self.api_filters,
             "swagger_path": str(self.swagger_path) if self.swagger_path is not None else None,
             "swagger_url": self.swagger_url,
         }
@@ -179,15 +181,15 @@ class CoverageSettings:
 
         # Read multi-spec CLI options
         spec_name = config.getoption("coverage_spec_name", None)
-        spec_api_urls = config.getoption("coverage_spec_api_url", None) or []
+        spec_api_filters = config.getoption("coverage_url_filter", None) or []
 
         specs: list[SpecConfig] = []
         top_level: dict[str, Any] = {}
 
         if coverage_spec and spec_name:
             # --coverage-spec with --coverage-spec-name → multi-spec mode via CLI
-            if not spec_api_urls:
-                return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-spec-api-url")
+            if not spec_api_filters:
+                return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-url-filter")
             else:
                 spec_value = str(coverage_spec)
                 swagger_url: str | None = None
@@ -199,13 +201,13 @@ class CoverageSettings:
                 specs = [
                     SpecConfig(
                         name=spec_name,
-                        api_urls=spec_api_urls,
+                        api_filters=spec_api_filters,
                         swagger_path=swagger_path,
                         swagger_url=swagger_url,
                     )
                 ]
                 coverage_spec = None  # Use multi-spec path
-        elif spec_name and not coverage_spec:
+        elif spec_name and not coverage_spec and not config.getoption("coverage_config", None):
             return cls(config_error="[api-coverage] --coverage-spec-name requires --coverage-spec")
         elif coverage_spec is None:
             from pytest_api_coverage.config.multi_spec import (  # noqa: PLC0415
@@ -221,17 +223,19 @@ class CoverageSettings:
                 specs, top_level = load_multi_spec_config(config_path)
 
             if spec_name:
-                if spec_api_urls:
+                if spec_api_filters:
                     logger.warning(
-                        "--coverage-spec-api-url is ignored when filtering "
+                        "--coverage-url-filter is ignored when filtering "
                         "a config file by --coverage-spec-name"
                     )
                 matched = [s for s in specs if s.name == spec_name]
                 if not matched:
                     available = ", ".join(repr(s.name) for s in specs) or "(none)"
-                    raise pytest.UsageError(
-                        f"[api-coverage] No spec named '{spec_name}' found in config. "
-                        f"Available specs: {available}"
+                    return cls(
+                        config_error=(
+                            f"[api-coverage] No spec named '{spec_name}' found in config. "
+                            f"Available specs: {available}"
+                        )
                     )
                 specs = matched
 

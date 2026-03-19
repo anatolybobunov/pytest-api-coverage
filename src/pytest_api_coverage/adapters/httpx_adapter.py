@@ -201,8 +201,9 @@ def _record_httpx_interaction(
             body = f"<binary: {len(response.request.content)} bytes>"
 
     # Build request model
+    # Use response.request.method to capture the final method after any redirects
     http_request = HTTPRequest(
-        method=method.upper(),
+        method=str(response.request.method).upper(),
         url=actual_url,
         path=parsed.path or "/",
         host=parsed.netloc,

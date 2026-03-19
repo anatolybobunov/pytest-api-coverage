@@ -77,11 +77,11 @@ def pytest_addoption(parser: Parser) -> None:
         help="Label for a single CLI spec, or filter name to select a spec from the config file.",
     )
     group.addoption(
-        "--coverage-spec-api-url",
-        dest="coverage_spec_api_url",
+        "--coverage-url-filter",
+        dest="coverage_url_filter",
         action="append",
         default=None,
-        help="Base URL of the API server to match requests against. Can be specified multiple times for multiple environments. Requires --coverage-spec. Example: --coverage-spec-api-url https://api.example.com",
+        help="Filter string to match request URLs against (substring match). Can be specified multiple times. Requires --coverage-spec. Example: --coverage-url-filter api.example.com",
     )
 
 
@@ -217,6 +217,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         self._no_requests_captured: bool = False
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
+        self._all_reports: dict[str, Any] = {}
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
@@ -239,7 +240,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         """Generate coverage reports at session end."""
         if self.settings.specs and self.orchestrator:
             self.orchestrator.process_interactions(self.collector.get_data())
-            self.orchestrator.generate_all_reports()
+            self._all_reports = self.orchestrator.generate_all_reports()
         elif self.swagger_spec:
             if self.collector.has_data():
                 self._generate_report()
@@ -253,6 +254,7 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
             print_multi_spec_summary(
                 terminalreporter,
                 self.orchestrator,
+                reports=self._all_reports,
                 record_errors=self.collector.record_error_count,
                 failed_specs=self.orchestrator.failed_specs,
             )
@@ -311,6 +313,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         self._swagger_load_error: str | None = None
         self.report_data: dict[str, Any] | None = None
         self.orchestrator: MultiSpecOrchestrator | None = None
+        self._all_reports: dict[str, Any] = {}
 
     @pytest.hookimpl
     def pytest_sessionstart(self, session: Session) -> None:
@@ -366,7 +369,7 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
                 reporter = self.orchestrator.reporters.get(spec_name)
                 if reporter:
                     reporter.process_interactions(interactions)
-            self.orchestrator.generate_all_reports()
+            self._all_reports = self.orchestrator.generate_all_reports()
         else:
             # Legacy path
             all_data: list[dict[str, Any]] = []
@@ -380,7 +383,12 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Print coverage summary to terminal."""
         if self.orchestrator:
-            print_multi_spec_summary(terminalreporter, self.orchestrator, failed_specs=self.orchestrator.failed_specs)
+            print_multi_spec_summary(
+                terminalreporter,
+                self.orchestrator,
+                reports=self._all_reports,
+                failed_specs=self.orchestrator.failed_specs,
+            )
         elif self.report_data:
             print_terminal_summary(terminalreporter, self.report_data, self.settings)
         elif self._swagger_load_error:
@@ -425,23 +433,13 @@ def _route_interaction_for_worker(interaction: dict[str, Any], specs: list[Any])
 
     Avoids importing MultiSpecOrchestrator on workers to keep them lightweight.
     """
-    from urllib.parse import urlparse  # noqa: PLC0415
-
-    from pytest_api_coverage.utils import normalize_origin  # noqa: PLC0415
+    from pytest_api_coverage.utils import matches_filter_value  # noqa: PLC0415
 
     url = interaction.get("request", {}).get("url", "")
-    req_origin = normalize_origin(url)
 
     for spec in specs:
-        for spec_url in spec.api_urls:
-            spec_origin = normalize_origin(spec_url)
-            if req_origin != spec_origin:
-                continue
-            parsed_spec = urlparse(spec_url)
-            parsed_req = urlparse(url)
-            spec_path = (parsed_spec.path or "/").rstrip("/")
-            req_path = parsed_req.path or "/"
-            if req_path == parsed_spec.path or req_path.startswith(spec_path + "/"):
+        for filter_value in spec.api_filters:
+            if matches_filter_value(url, filter_value):
                 return spec.name
     return None
 
