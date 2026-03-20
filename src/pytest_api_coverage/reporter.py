@@ -43,9 +43,11 @@ class CoverageReporter:
         # Build combined prefix list (spec + manual)
         self._all_prefixes = self._build_prefix_list()
 
-        # Pre-compile path patterns for all endpoints
+        # Pre-compile path patterns for all endpoints.
+        # Sort so literal paths (no {param}) are tried before parameterized ones,
+        # preventing /users/{id} from shadowing /users/me.
         self._path_patterns: dict[str, re.Pattern[str]] = {}
-        for endpoint in swagger_spec.endpoints:
+        for endpoint in sorted(swagger_spec.endpoints, key=lambda e: ("{" in e.path, e.path)):
             key = f"{endpoint.method}:{endpoint.path}"
             self._path_patterns[key] = self._compile_path_pattern(endpoint.path)
 

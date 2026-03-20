@@ -197,6 +197,226 @@ class TestWriteReportsPrefix:
         assert files[0].name == "coverage.json"
 
 
+@pytest.fixture
+def sample_split_report():
+    """Sample split-by-origin report for testing writers."""
+    return {
+        "swagger_source": "api.yaml",
+        "split_by_origin": True,
+        "origins": {
+            "https://api.example.com": {
+                "summary": {
+                    "total_endpoints": 4,
+                    "covered_endpoints": 2,
+                    "coverage_percentage": 50.0,
+                    "total_requests": 2,
+                },
+                "endpoints": [
+                    {
+                        "path": "/users",
+                        "hit_count": 2,
+                        "is_covered": True,
+                        "all_methods_covered": True,
+                        "methods": [
+                            {
+                                "method": "GET",
+                                "hit_count": 2,
+                                "is_covered": True,
+                                "response_codes": {200: 2},
+                                "test_names": ["test_list"],
+                            },
+                        ],
+                    },
+                    {
+                        "path": "/users/{id}",
+                        "hit_count": 0,
+                        "is_covered": False,
+                        "all_methods_covered": False,
+                        "methods": [
+                            {
+                                "method": "GET",
+                                "hit_count": 0,
+                                "is_covered": False,
+                                "response_codes": {},
+                                "test_names": [],
+                            },
+                        ],
+                    },
+                ],
+            },
+            "https://proxy.example.com": {
+                "summary": {
+                    "total_endpoints": 4,
+                    "covered_endpoints": 1,
+                    "coverage_percentage": 25.0,
+                    "total_requests": 1,
+                },
+                "endpoints": [
+                    {
+                        "path": "/users",
+                        "hit_count": 0,
+                        "is_covered": False,
+                        "all_methods_covered": False,
+                        "methods": [
+                            {
+                                "method": "GET",
+                                "hit_count": 0,
+                                "is_covered": False,
+                                "response_codes": {},
+                                "test_names": [],
+                            },
+                        ],
+                    },
+                    {
+                        "path": "/users/{id}",
+                        "hit_count": 1,
+                        "is_covered": True,
+                        "all_methods_covered": True,
+                        "methods": [
+                            {
+                                "method": "GET",
+                                "hit_count": 1,
+                                "is_covered": True,
+                                "response_codes": {200: 1},
+                                "test_names": ["test_get_user"],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        "combined_summary": {
+            "total_endpoints": 4,
+            "covered_endpoints": 3,
+            "coverage_percentage": 75.0,
+            "total_requests": 3,
+            "origins_count": 2,
+        },
+    }
+
+
+class TestCsvWriterSplitMode:
+    """Tests for CsvWriter._to_rows_split (split-by-origin mode)."""
+
+    def test_split_csv_has_origin_column(self, sample_split_report, tmp_path: Path):
+        """Split CSV includes Origin as the first column."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+
+        assert headers[0] == "Origin"
+
+    def test_split_csv_has_subtotal_rows_per_origin(self, sample_split_report, tmp_path: Path):
+        """Split CSV has one SUBTOTAL row per origin."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        subtotal_rows = [r for r in rows if r["Path"] == "SUBTOTAL"]
+        assert len(subtotal_rows) == 2
+
+    def test_split_csv_total_row_has_all_origin(self, sample_split_report, tmp_path: Path):
+        """Split CSV TOTAL row has Origin='ALL'."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        total_rows = [r for r in rows if r["Path"] == "TOTAL"]
+        assert len(total_rows) == 1
+        assert total_rows[0]["Origin"] == "ALL"
+
+    def test_split_csv_subtotal_percentages(self, sample_split_report, tmp_path: Path):
+        """SUBTOTAL rows show correct per-origin coverage percentages."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        subtotals = {r["Origin"]: r for r in rows if r["Path"] == "SUBTOTAL"}
+        assert subtotals["https://api.example.com"]["Covered"] == "50.0%"
+        assert subtotals["https://proxy.example.com"]["Covered"] == "25.0%"
+
+    def test_split_csv_total_combined_percentage(self, sample_split_report, tmp_path: Path):
+        """TOTAL row shows combined_summary coverage percentage."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        total_row = next(r for r in rows if r["Path"] == "TOTAL")
+        assert total_row["Covered"] == "75.0%"
+
+    def test_split_csv_endpoint_rows_have_origin(self, sample_split_report, tmp_path: Path):
+        """Data rows (non-summary) include the origin they belong to."""
+        output_path = tmp_path / "split.csv"
+        CsvWriter.write(sample_split_report, output_path)
+
+        with open(output_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        sentinel_origins = {"SWAGGER", "ALL"}
+        data_rows = [r for r in rows if r["Origin"] not in sentinel_origins and r["Path"] not in ("SUBTOTAL", "")]
+        for row in data_rows:
+            assert row["Origin"] in {"https://api.example.com", "https://proxy.example.com"}
+
+
+class TestHtmlWriterSplitMode:
+    """Tests for HtmlWriter split-by-origin mode."""
+
+    def test_split_html_mentions_split_by_origin(self, sample_split_report, tmp_path: Path):
+        """Split HTML must say 'Split by Origin'."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+
+        assert "Split by Origin" in output_path.read_text()
+
+    def test_split_html_has_per_origin_sections(self, sample_split_report, tmp_path: Path):
+        """Split HTML contains a section for each origin."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+
+        content = output_path.read_text()
+        assert "https://api.example.com" in content
+        assert "https://proxy.example.com" in content
+
+    def test_split_html_shows_combined_coverage(self, sample_split_report, tmp_path: Path):
+        """Split HTML shows the combined coverage percentage."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+
+        assert "75.0%" in output_path.read_text()
+
+    def test_split_html_origins_count(self, sample_split_report, tmp_path: Path):
+        """Split HTML displays the number of origins from combined_summary."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+
+        content = output_path.read_text()
+        # combined_summary.origins_count = 2; it appears in the Origins card
+        assert "2" in content
+
+    def test_split_html_is_valid_html(self, sample_split_report, tmp_path: Path):
+        """Split HTML output starts with a proper DOCTYPE declaration."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+
+        assert output_path.read_text().startswith("<!DOCTYPE html>")
+
+
 class TestHtmlWriter:
     """Tests for HtmlWriter."""
 

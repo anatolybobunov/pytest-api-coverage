@@ -261,3 +261,108 @@ class TestCoverageReporter:
 
             assert output_dir.exists()
             assert len(written) == 1
+
+
+class TestAmbiguousPathPatterns:
+    """Tests for matching when spec has both literal and parameterized paths."""
+
+    def test_literal_path_wins_over_parameter(self, make_swagger_spec, make_coverage_report):
+        """GET /users/me should match literal /users/me, not parameterized /users/{id}.
+
+        Even when /users/{id} is listed first in the spec (which would naively match
+        /users/me since 'me' satisfies [^/]+), the literal endpoint must take priority.
+        """
+        spec = make_swagger_spec(
+            endpoints=[("GET", "/users/{id}"), ("GET", "/users/me")],
+            base_path="",
+        )
+        interactions = [
+            {
+                "request": {"method": "GET", "path": "/users/me"},
+                "response": {"status_code": 200},
+                "test_name": "test_get_me",
+            },
+        ]
+        report = make_coverage_report(spec, interactions)
+
+        me_path = next(e for e in report["endpoints"] if e["path"] == "/users/me")
+        me_method = next(m for m in me_path["methods"] if m["method"] == "GET")
+        assert me_method["is_covered"] is True, "/users/me endpoint should be covered"
+
+        id_path = next(e for e in report["endpoints"] if e["path"] == "/users/{id}")
+        id_method = next(m for m in id_path["methods"] if m["method"] == "GET")
+        assert id_method["is_covered"] is False, "/users/{id} should not be covered by /users/me"
+
+    def test_parameterized_path_matches_non_literal(self, make_swagger_spec, make_coverage_report):
+        """/users/123 should match /users/{id}, not the literal /users/me."""
+        spec = make_swagger_spec(
+            endpoints=[("GET", "/users/me"), ("GET", "/users/{id}")],
+            base_path="",
+        )
+        interactions = [
+            {
+                "request": {"method": "GET", "path": "/users/123"},
+                "response": {"status_code": 200},
+                "test_name": "test_get_user",
+            },
+        ]
+        report = make_coverage_report(spec, interactions)
+
+        id_path = next(e for e in report["endpoints"] if e["path"] == "/users/{id}")
+        id_method = next(m for m in id_path["methods"] if m["method"] == "GET")
+        assert id_method["is_covered"] is True, "/users/{id} should be covered by /users/123"
+
+        me_path = next(e for e in report["endpoints"] if e["path"] == "/users/me")
+        me_method = next(m for m in me_path["methods"] if m["method"] == "GET")
+        assert me_method["is_covered"] is False, "/users/me should not be covered by /users/123"
+
+
+class TestEdgeCasePaths:
+    """Tests documenting edge case path matching behaviors."""
+
+    def test_trailing_slash_in_spec_does_not_match_request_without_slash(
+        self, make_swagger_spec, make_coverage_report
+    ):
+        """Spec path /users/ (trailing slash) does not match request to /users.
+
+        _normalize_path strips trailing slash from requests, but the spec pattern
+        is compiled from the literal spec path (including trailing slash).
+        Result: /users regex is ^/users/$ which does not match normalized /users.
+        """
+        spec = make_swagger_spec(endpoints=[("GET", "/users/")], base_path="")
+        interactions = [
+            {
+                "request": {"method": "GET", "path": "/users"},
+                "response": {"status_code": 200},
+            },
+        ]
+        report = make_coverage_report(spec, interactions)
+
+        assert report["summary"]["covered_endpoints"] == 0
+
+    def test_case_sensitive_path_no_match(self, make_swagger_spec, make_coverage_report):
+        """Path matching is case-sensitive: /Users/123 does not match /users/{id}."""
+        spec = make_swagger_spec(endpoints=[("GET", "/users/{id}")], base_path="")
+        interactions = [
+            {
+                "request": {"method": "GET", "path": "/Users/123"},
+                "response": {"status_code": 200},
+            },
+        ]
+        report = make_coverage_report(spec, interactions)
+
+        assert report["summary"]["covered_endpoints"] == 0
+        assert report["summary"]["unmatched_requests"] == 1
+
+    def test_case_sensitive_path_correct_case_matches(self, make_swagger_spec, make_coverage_report):
+        """Path matching is case-sensitive: correct lowercase /users/123 matches /users/{id}."""
+        spec = make_swagger_spec(endpoints=[("GET", "/users/{id}")], base_path="")
+        interactions = [
+            {
+                "request": {"method": "GET", "path": "/users/123"},
+                "response": {"status_code": 200},
+            },
+        ]
+        report = make_coverage_report(spec, interactions)
+
+        assert report["summary"]["covered_endpoints"] == 1
