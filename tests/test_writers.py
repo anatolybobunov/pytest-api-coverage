@@ -416,6 +416,15 @@ class TestHtmlWriterSplitMode:
 
         assert output_path.read_text().startswith("<!DOCTYPE html>")
 
+    def test_split_html_has_filter_bars(self, sample_split_report, tmp_path: Path):
+        """Split HTML contains filter bars for each origin section."""
+        output_path = tmp_path / "split.html"
+        HtmlWriter.write(sample_split_report, output_path)
+        content = output_path.read_text()
+        assert "filter-bar" in content
+        assert 'data-filter="covered"' in content
+        assert 'data-filter="not-covered"' in content
+
 
 class TestHtmlWriter:
     """Tests for HtmlWriter."""
@@ -449,15 +458,49 @@ class TestHtmlWriter:
         assert "2/4" in content or ("2" in content and "4" in content)
 
     def test_html_three_color_scheme(self, sample_report, tmp_path: Path):
-        """Test C8: HTML uses 3-color scheme."""
+        """Test HTML uses 3-color scheme: covered, partial-covered, not-covered."""
         output_path = tmp_path / "coverage.html"
         HtmlWriter.write(sample_report, output_path)
 
         content = output_path.read_text()
-        # Should have CSS classes for three states
         assert "covered" in content
         assert "not-covered" in content
-        # covered-once may or may not appear depending on data
+        assert "partial-covered" in content
+        assert "covered-once" not in content
+
+    def test_html_partial_covered_class(self, tmp_path: Path):
+        """Test endpoint with mixed method coverage gets partial-covered class."""
+        report = {
+            "format_version": "1.0",
+            "split_by_origin": False,
+            "summary": {"total_endpoints": 1, "covered_endpoints": 0, "coverage_percentage": 0.0, "total_requests": 1},
+            "endpoints": [
+                {
+                    "path": "/items",
+                    "hit_count": 1,
+                    "is_covered": True,
+                    "all_methods_covered": False,
+                    "methods": [
+                        {"method": "GET", "hit_count": 2, "is_covered": True, "response_codes": {200: 2}, "test_names": []},
+                        {"method": "POST", "hit_count": 0, "is_covered": False, "response_codes": {}, "test_names": []},
+                    ],
+                }
+            ],
+        }
+        output_path = tmp_path / "partial.html"
+        HtmlWriter.write(report, output_path)
+        content = output_path.read_text()
+        assert 'class="partial-covered"' in content
+
+    def test_html_filter_bar_present(self, sample_report, tmp_path: Path):
+        """Test HTML contains filter bar with buttons."""
+        output_path = tmp_path / "coverage.html"
+        HtmlWriter.write(sample_report, output_path)
+        content = output_path.read_text()
+        assert "filter-bar" in content
+        assert 'data-filter="covered"' in content
+        assert 'data-filter="partial-covered"' in content
+        assert 'data-filter="not-covered"' in content
 
     def test_html_contains_endpoints(self, sample_report, tmp_path: Path):
         """Test HTML contains endpoint information."""

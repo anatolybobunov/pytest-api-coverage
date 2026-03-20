@@ -142,13 +142,41 @@ CSS_STYLES = """
         .badge-warning { background: #e9ecef; color: #495057; }      /* Gray: hit_count == 1 */
         .badge-danger { background: #fee2e2; color: #991b1b; }       /* Red: not covered */
 
-        /* C8: Row background colors based on coverage */
+        /* Row background colors based on endpoint coverage status */
         tr.covered { background-color: #d4edda; }
-        tr.covered-once { background-color: #e9ecef; }
+        tr.partial-covered { background-color: #fff3cd; }
         tr.not-covered { background-color: #f8d7da; }
         tr.covered:hover td { background-color: #c3e6cb; }
-        tr.covered-once:hover td { background-color: #dee2e6; }
+        tr.partial-covered:hover td { background-color: #ffeeba; }
         tr.not-covered:hover td { background-color: #f5c6cb; }
+
+        .badge-partial { background: #fff3cd; color: #856404; }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.15s;
+        }
+
+        .filter-btn:not(.active) {
+            opacity: 0.4;
+        }
+
+        .filter-btn.filter-covered { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .filter-btn.filter-partial { background: #fff3cd; color: #856404; border-color: #ffeeba; }
+        .filter-btn.filter-not-covered { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
 
         .method {
             font-weight: 600;
@@ -248,6 +276,17 @@ CSS_STYLES = """
 """
 
 ENDPOINTS_TABLE_TEMPLATE = """
+        <div class="filter-bar">
+            <button class="filter-btn filter-covered active" data-filter="covered">
+                Covered (<span class="count-covered">0</span>)
+            </button>
+            <button class="filter-btn filter-partial active" data-filter="partial-covered">
+                Partial (<span class="count-partial">0</span>)
+            </button>
+            <button class="filter-btn filter-not-covered active" data-filter="not-covered">
+                Not Covered (<span class="count-not-covered">0</span>)
+            </button>
+        </div>
         <table class="sortable-table">
             <thead>
                 <tr>
@@ -261,11 +300,11 @@ ENDPOINTS_TABLE_TEMPLATE = """
             </thead>
             <tbody>
                 {% for path_data in endpoints %}
+                {% set path_class = 'covered' if path_data.all_methods_covered else ('partial-covered' if path_data.is_covered else 'not-covered') %}
+                {% set path_status = 2 if path_data.all_methods_covered else (1 if path_data.is_covered else 0) %}
                 {% for method in path_data.methods %}
                 {% set is_first = loop.first %}
-                {% set status_value = 2 if method.hit_count > 1 else (1 if method.hit_count == 1 else 0) %}
-                {% set row_class = 'covered' if method.hit_count > 1 else ('covered-once' if method.hit_count == 1 else 'not-covered') %}
-                <tr class="{{ row_class }}" data-path="{{ path_data.path }}" data-hit-count="{{ path_data.hit_count }}" data-status="{{ status_value }}" data-group-size="{{ path_data.methods|length }}" data-is-first="{{ 'true' if is_first else 'false' }}">
+                <tr class="{{ path_class }}" data-path="{{ path_data.path }}" data-hit-count="{{ path_data.hit_count }}" data-path-status="{{ path_status }}" data-group-size="{{ path_data.methods|length }}" data-is-first="{{ 'true' if is_first else 'false' }}">
                     {% if is_first %}
                     <td rowspan="{{ path_data.methods|length }}" class="path">{{ path_data.path }}</td>
                     <td rowspan="{{ path_data.methods|length }}">{{ path_data.hit_count }}</td>
@@ -299,6 +338,63 @@ ENDPOINTS_TABLE_TEMPLATE = """
 SORT_SCRIPT = """
     <script>
     (function() {
+        // Helper: collect row groups from a tbody
+        function getGroups(tbody) {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const groups = [];
+            let currentGroup = [];
+            rows.forEach(function(row) {
+                if (row.dataset.isFirst === 'true') {
+                    if (currentGroup.length > 0) groups.push(currentGroup);
+                    currentGroup = [row];
+                } else {
+                    currentGroup.push(row);
+                }
+            });
+            if (currentGroup.length > 0) groups.push(currentGroup);
+            return groups;
+        }
+
+        // Initialize filter bars
+        document.querySelectorAll('.filter-bar').forEach(function(bar) {
+            const table = bar.nextElementSibling;
+            if (!table || !table.classList.contains('sortable-table')) return;
+            const tbody = table.querySelector('tbody');
+
+            // Count endpoints by path-status for this table
+            const counts = {covered: 0, 'partial-covered': 0, 'not-covered': 0};
+            getGroups(tbody).forEach(function(group) {
+                const status = parseInt(group[0].dataset.pathStatus, 10);
+                if (status === 2) counts['covered']++;
+                else if (status === 1) counts['partial-covered']++;
+                else counts['not-covered']++;
+            });
+
+            bar.querySelector('.count-covered').textContent = counts['covered'];
+            bar.querySelector('.count-partial').textContent = counts['partial-covered'];
+            bar.querySelector('.count-not-covered').textContent = counts['not-covered'];
+
+            // Filter button click handlers
+            bar.querySelectorAll('.filter-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const activeFilters = new Set(
+                        Array.from(bar.querySelectorAll('.filter-btn.active'))
+                            .map(b => b.dataset.filter)
+                    );
+                    getGroups(tbody).forEach(function(group) {
+                        const status = parseInt(group[0].dataset.pathStatus, 10);
+                        const cls = status === 2 ? 'covered' : (status === 1 ? 'partial-covered' : 'not-covered');
+                        const visible = activeFilters.has(cls);
+                        group.forEach(function(row) {
+                            row.style.display = visible ? '' : 'none';
+                        });
+                    });
+                });
+            });
+        });
+
+        // Sortable tables
         document.querySelectorAll('.sortable-table').forEach(function(table) {
             const headers = table.querySelectorAll('th.sortable');
 
@@ -312,24 +408,7 @@ SORT_SCRIPT = """
                     headers.forEach(h => h.classList.remove('asc', 'desc'));
                     this.classList.add(isAsc ? 'desc' : 'asc');
 
-                    // Group rows by path
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    const groups = [];
-                    let currentGroup = [];
-
-                    rows.forEach(function(row) {
-                        if (row.dataset.isFirst === 'true') {
-                            if (currentGroup.length > 0) {
-                                groups.push(currentGroup);
-                            }
-                            currentGroup = [row];
-                        } else {
-                            currentGroup.push(row);
-                        }
-                    });
-                    if (currentGroup.length > 0) {
-                        groups.push(currentGroup);
-                    }
+                    const groups = getGroups(tbody);
 
                     // Sort groups
                     groups.sort(function(a, b) {
@@ -345,9 +424,8 @@ SORT_SCRIPT = """
                             valA = parseInt(rowA.dataset.hitCount, 10);
                             valB = parseInt(rowB.dataset.hitCount, 10);
                         } else if (sortKey === 'status') {
-                            // Find min status in group (0=not covered, 1=once, 2=covered)
-                            valA = Math.min(...a.map(r => parseInt(r.dataset.status, 10)));
-                            valB = Math.min(...b.map(r => parseInt(r.dataset.status, 10)));
+                            valA = parseInt(rowA.dataset.pathStatus, 10);
+                            valB = parseInt(rowB.dataset.pathStatus, 10);
                         }
 
                         const diff = valA - valB;
