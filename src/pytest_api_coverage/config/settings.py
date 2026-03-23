@@ -134,10 +134,10 @@ class CoverageSettings:
         if isinstance(self.strip_prefixes, str):
             self.strip_prefixes = [p.strip() for p in self.strip_prefixes.split(",") if p.strip()]
 
-        KNOWN_FORMATS = {"html", "json", "csv", "all"}
-        unknown = self.formats - KNOWN_FORMATS
+        known_formats = {"html", "json", "csv", "all"}
+        unknown = self.formats - known_formats
         if unknown:
-            self.config_error = f"Unknown output format(s): {unknown}. Valid formats: {KNOWN_FORMATS - {'all'}}"
+            self.config_error = f"Unknown output format(s): {unknown}. Valid formats: {known_formats - {'all'}}"
 
     @staticmethod
     def _validate_spec(value: str | Path) -> str | Path:

@@ -17,8 +17,8 @@ try:
 except ImportError:
     HTTPX_AVAILABLE = False
 
-from pytest_api_coverage.collector import CoverageCollector
-from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse
+from pytest_api_coverage.collector import CoverageCollector  # noqa: E402
+from pytest_api_coverage.models import HTTPInteraction, HTTPRequest, HTTPResponse  # noqa: E402
 
 _PATCH_SENTINEL = "_pytest_api_coverage_patched"
 
