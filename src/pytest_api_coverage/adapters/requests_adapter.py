@@ -97,7 +97,7 @@ class RequestsAdapter:
             if not self._installed:
                 return
 
-            current = getattr(requests.sessions.Session, 'request', None)
+            current = getattr(requests.sessions.Session, "request", None)
             if current is self._patched_request and self._original_request is not None:
                 requests.sessions.Session.request = self._original_request  # type: ignore[method-assign]
 

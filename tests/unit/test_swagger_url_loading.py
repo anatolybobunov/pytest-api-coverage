@@ -48,9 +48,7 @@ class TestSwaggerParserUrlLoading:
         mock_client = MagicMock()
         mock_client.__enter__ = lambda s: s
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.get.return_value = _make_mock_response(
-            MINIMAL_OPENAPI_JSON, "application/json"
-        )
+        mock_client.get.return_value = _make_mock_response(MINIMAL_OPENAPI_JSON, "application/json")
 
         with patch("pytest_api_coverage.schemas.swagger.httpx") as mock_httpx:
             mock_httpx.Client.return_value = mock_client
@@ -65,9 +63,7 @@ class TestSwaggerParserUrlLoading:
         mock_client = MagicMock()
         mock_client.__enter__ = lambda s: s
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.get.return_value = _make_mock_response(
-            MINIMAL_OPENAPI_YAML, "application/yaml"
-        )
+        mock_client.get.return_value = _make_mock_response(MINIMAL_OPENAPI_YAML, "application/yaml")
 
         with patch("pytest_api_coverage.schemas.swagger.httpx") as mock_httpx:
             mock_httpx.Client.return_value = mock_client
@@ -82,9 +78,7 @@ class TestSwaggerParserUrlLoading:
         mock_client = MagicMock()
         mock_client.__enter__ = lambda s: s
         mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.get.return_value = _make_mock_response(
-            MINIMAL_OPENAPI_YAML, "text/plain"
-        )
+        mock_client.get.return_value = _make_mock_response(MINIMAL_OPENAPI_YAML, "text/plain")
 
         with patch("pytest_api_coverage.schemas.swagger.httpx") as mock_httpx:
             mock_httpx.Client.return_value = mock_client

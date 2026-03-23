@@ -415,10 +415,7 @@ def test_current_test_cleared_after_setup_failure(pytester: pytest.Pytester) -> 
 
     # The request made in test_after_broken_setup must be attributed to that test,
     # not to test_with_broken_setup (which never ran its body).
-    covered = [
-        e for e in data.get("endpoints", [])
-        if any(m.get("is_covered") for m in e.get("methods", []))
-    ]
+    covered = [e for e in data.get("endpoints", []) if any(m.get("is_covered") for m in e.get("methods", []))]
     assert covered, "At least one endpoint must be covered by the second test"
     for path_entry in covered:
         for method_entry in path_entry.get("methods", []):

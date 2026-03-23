@@ -139,9 +139,7 @@ class TestSpecConfigProperties:
             SpecConfig(name=name, api_filters=[])
 
     @given(valid_name, valid_url_list, valid_path_str, valid_url)
-    def test_both_path_and_url_always_raises(
-        self, name: str, api_filters: list[str], path_str: str, url: str
-    ) -> None:
+    def test_both_path_and_url_always_raises(self, name: str, api_filters: list[str], path_str: str, url: str) -> None:
         """SpecConfig with both swagger_path and swagger_url always raises ValueError."""
         with pytest.raises(ValueError):
             SpecConfig(name=name, api_filters=api_filters, swagger_path=path_str, swagger_url=url)

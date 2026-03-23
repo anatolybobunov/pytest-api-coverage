@@ -391,9 +391,7 @@ class TestAdapterStackingGuard:
         adapter1.uninstall()
         adapter2.uninstall()
 
-        assert sess.Session.request is original, (
-            "Stacked adapter installs left a permanent patch on Session.request"
-        )
+        assert sess.Session.request is original, "Stacked adapter installs left a permanent patch on Session.request"
 
     def test_two_httpx_adapter_instances_do_not_leave_permanent_patch(self) -> None:
         """Double install/uninstall must not leave httpx.Client.request permanently patched."""
@@ -434,9 +432,7 @@ class TestAdapterStackingGuard:
         adapter2.uninstall()  # reverse order
         adapter1.uninstall()
 
-        assert sess.Session.request is original, (
-            "Reverse-order uninstall left a permanent patch on Session.request"
-        )
+        assert sess.Session.request is original, "Reverse-order uninstall left a permanent patch on Session.request"
 
     def test_httpx_adapter_reverse_uninstall_order(self) -> None:
         """Reverse uninstall order (adapter2 first) must also leave no permanent patch."""

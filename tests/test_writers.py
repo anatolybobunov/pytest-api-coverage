@@ -481,7 +481,13 @@ class TestHtmlWriter:
                     "is_covered": True,
                     "all_methods_covered": False,
                     "methods": [
-                        {"method": "GET", "hit_count": 2, "is_covered": True, "response_codes": {200: 2}, "test_names": []},
+                        {
+                            "method": "GET",
+                            "hit_count": 2,
+                            "is_covered": True,
+                            "response_codes": {200: 2},
+                            "test_names": [],
+                        },
                         {"method": "POST", "hit_count": 0, "is_covered": False, "response_codes": {}, "test_names": []},
                     ],
                 }

@@ -117,9 +117,7 @@ class SwaggerParser:
             SwaggerSpec: Parsed specification
         """
         if httpx is None:
-            raise ImportError(
-                "httpx is required to fetch remote specs. Install it: pip install httpx"
-            )
+            raise ImportError("httpx is required to fetch remote specs. Install it: pip install httpx")
         with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
             response = client.get(url)
             response.raise_for_status()

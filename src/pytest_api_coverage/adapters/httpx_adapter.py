@@ -145,13 +145,13 @@ class HttpxAdapter:
             if not self._installed:
                 return
 
-            current_sync = getattr(httpx.Client, 'request', None)
+            current_sync = getattr(httpx.Client, "request", None)
             if current_sync is self._patched_request and self._original_request is not None:
                 httpx.Client.request = self._original_request  # type: ignore[method-assign]
             self._original_request = None
             self._patched_request = None
 
-            current_async = getattr(httpx.AsyncClient, 'request', None)
+            current_async = getattr(httpx.AsyncClient, "request", None)
             if current_async is self._patched_async_request and self._original_async_request is not None:
                 httpx.AsyncClient.request = self._original_async_request  # type: ignore[method-assign]
             self._original_async_request = None
@@ -220,7 +220,7 @@ def _record_httpx_interaction(
     # Calculate body size — avoid reading an unconsumed stream.
     body_size = 0
     try:
-        if hasattr(response, 'is_stream_consumed'):
+        if hasattr(response, "is_stream_consumed"):
             if response.is_stream_consumed:
                 body_size = len(response.content)
             else:

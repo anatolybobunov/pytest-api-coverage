@@ -213,9 +213,7 @@ def test_load_empty_specs_list(tmp_path: Path) -> None:
 
 
 class TestApiUrlsTypeValidation:
-    def test_api_urls_as_string_is_rejected(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_api_urls_as_string_is_rejected(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """api_urls as a plain string must be rejected with a warning, spec skipped."""
         import logging
 
@@ -266,13 +264,11 @@ class TestMultiSpecLoaderProperties:
         tmpdir = tempfile.mkdtemp()
         try:
             valid_entries = [
-                {"name": f"spec-{i}", "api_filters": [f"http://api{i}.example.com"]}
-                for i in range(n_valid)
+                {"name": f"spec-{i}", "api_filters": [f"http://api{i}.example.com"]} for i in range(n_valid)
             ]
             # Entries with empty name are skipped by _parse_spec_entry
             invalid_entries = [
-                {"name": "", "api_filters": [f"http://invalid{i}.example.com"]}
-                for i in range(n_invalid)
+                {"name": "", "api_filters": [f"http://invalid{i}.example.com"]} for i in range(n_invalid)
             ]
             config_data: dict = {"specs": valid_entries + invalid_entries}
             config_file = Path(tmpdir) / "coverage-config.yaml"
@@ -285,9 +281,7 @@ class TestMultiSpecLoaderProperties:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     @given(
-        st.text(alphabet="abcdefghijklmnopqrstuvwxyz_", min_size=1, max_size=20).filter(
-            lambda s: s != "specs"
-        ),
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz_", min_size=1, max_size=20).filter(lambda s: s != "specs"),
         st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=30),
     )
     def test_top_level_settings_passthrough(self, key: str, value: str) -> None:

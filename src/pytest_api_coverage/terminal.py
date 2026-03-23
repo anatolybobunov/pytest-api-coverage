@@ -52,9 +52,7 @@ def print_terminal_summary(
     )
     unmatched = report_data.get("summary", {}).get("unmatched_requests", 0)
     if unmatched > 0:
-        terminalreporter.write_line(
-            f"[api-coverage] {unmatched} request(s) did not match any endpoint in the spec"
-        )
+        terminalreporter.write_line(f"[api-coverage] {unmatched} request(s) did not match any endpoint in the spec")
     if record_errors > 0:
         terminalreporter.write_line(
             f"[api-coverage] Warning: {record_errors} HTTP recording error(s) — enable DEBUG logging for details",

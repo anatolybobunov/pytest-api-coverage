@@ -320,9 +320,7 @@ class TestAmbiguousPathPatterns:
 class TestEdgeCasePaths:
     """Tests documenting edge case path matching behaviors."""
 
-    def test_trailing_slash_in_spec_does_not_match_request_without_slash(
-        self, make_swagger_spec, make_coverage_report
-    ):
+    def test_trailing_slash_in_spec_does_not_match_request_without_slash(self, make_swagger_spec, make_coverage_report):
         """Spec path /users/ (trailing slash) does not match request to /users.
 
         _normalize_path strips trailing slash from requests, but the spec pattern

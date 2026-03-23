@@ -32,7 +32,8 @@ def pytest_addoption(parser: Parser) -> None:
         dest="coverage_spec",
         type=str,
         default=None,
-        help="Path to a local OpenAPI/Swagger spec file (JSON/YAML) or a remote URL. Enables API coverage tracking for the given specification.",
+        help="Path to a local OpenAPI/Swagger spec file (JSON/YAML) or a remote URL. "
+             "Enables API coverage tracking for the given specification.",
     )
     group.addoption(
         "--coverage-output",
@@ -46,28 +47,32 @@ def pytest_addoption(parser: Parser) -> None:
         dest="coverage_format",
         type=str,
         default="html",
-        help="Comma-separated list of report formats to generate. Supported formats: json, csv, html, all. 'all' expands to all supported formats. Default: html",
+        help="Comma-separated list of report formats to generate. Supported formats: json, csv, html, all. "
+             "'all' expands to all supported formats. Default: html",
     )
     group.addoption(
         "--coverage-strip-prefix",
         dest="coverage_strip_prefix",
         type=str,
         default=None,
-        help="Comma-separated path prefixes to strip from request URLs before matching against the spec. Useful when the API is served under a base path not present in the spec. Example: /v1,/api/v2",
+        help="Comma-separated path prefixes to strip from request URLs before matching against the spec. "
+             "Useful when the API is served under a base path not present in the spec. Example: /v1,/api/v2",
     )
     group.addoption(
         "--coverage-split-by-origin",
         dest="coverage_split_by_origin",
         action="store_true",
         default=False,
-        help="When enabled, coverage statistics are grouped separately for each unique API origin (host:port) found in recorded requests.",
+        help="When enabled, coverage statistics are grouped separately for each unique API origin (host:port) "
+             "found in recorded requests.",
     )
     group.addoption(
         "--coverage-config",
         dest="coverage_config",
         type=str,
         default=None,
-        help="Path to an api-coverage configuration file (YAML or JSON) that defines multiple specs, their API URLs, and shared settings. See documentation for the config file format.",
+        help="Path to an api-coverage configuration file (YAML or JSON) that defines multiple specs, their API URLs, "
+             "and shared settings. See documentation for the config file format.",
     )
     group.addoption(
         "--coverage-spec-name",
@@ -81,7 +86,8 @@ def pytest_addoption(parser: Parser) -> None:
         dest="coverage_url_filter",
         action="append",
         default=None,
-        help="Filter string to match request URLs against (substring match). Can be specified multiple times. Requires --coverage-spec. Example: --coverage-url-filter api.example.com",
+        help="Filter string to match request URLs against (substring match). Can be specified multiple times. "
+             "Requires --coverage-spec. Example: --coverage-url-filter api.example.com",
     )
 
 

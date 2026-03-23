@@ -137,10 +137,7 @@ class CoverageSettings:
         KNOWN_FORMATS = {"html", "json", "csv", "all"}
         unknown = self.formats - KNOWN_FORMATS
         if unknown:
-            self.config_error = (
-                f"Unknown output format(s): {unknown}. "
-                f"Valid formats: {KNOWN_FORMATS - {'all'}}"
-            )
+            self.config_error = f"Unknown output format(s): {unknown}. Valid formats: {KNOWN_FORMATS - {'all'}}"
 
     @staticmethod
     def _validate_spec(value: str | Path) -> str | Path:
@@ -225,16 +222,14 @@ class CoverageSettings:
             if spec_name:
                 if spec_api_filters:
                     logger.warning(
-                        "--coverage-url-filter is ignored when filtering "
-                        "a config file by --coverage-spec-name"
+                        "--coverage-url-filter is ignored when filtering a config file by --coverage-spec-name"
                     )
                 matched = [s for s in specs if s.name == spec_name]
                 if not matched:
                     available = ", ".join(repr(s.name) for s in specs) or "(none)"
                     return cls(
                         config_error=(
-                            f"[api-coverage] No spec named '{spec_name}' found in config. "
-                            f"Available specs: {available}"
+                            f"[api-coverage] No spec named '{spec_name}' found in config. Available specs: {available}"
                         )
                     )
                 specs = matched

@@ -59,7 +59,7 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     if not isinstance(api_filters, list):
         logger.warning(
             "Spec '%s' has invalid 'api_filters': expected a list, got %s. "
-            "Use YAML list syntax:\n  api_filters:\n    - \"https://...\"",
+            'Use YAML list syntax:\n  api_filters:\n    - "https://..."',
             name,
             type(api_filters).__name__,
         )
@@ -70,5 +70,3 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
         logger.warning("Spec '%s' has both 'swagger_path' and 'swagger_url', skipping", name)
         return None
     return SpecConfig(name=name, api_filters=api_filters, swagger_path=swagger_path, swagger_url=swagger_url)
-
-

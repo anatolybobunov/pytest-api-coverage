@@ -257,11 +257,7 @@ def test_spec_name_no_match_defers_error(tmp_path, mocker):
     spec_file.write_text("openapi: '3.0.0'")
     config_file = tmp_path / "coverage-config.yaml"
     config_file.write_text(
-        f"specs:\n"
-        f"  - name: auth\n"
-        f"    api_filters:\n"
-        f"      - https://auth.example.com\n"
-        f"    swagger_path: {spec_file}\n"
+        f"specs:\n  - name: auth\n    api_filters:\n      - https://auth.example.com\n    swagger_path: {spec_file}\n"
     )
 
     config = MagicMock()
@@ -400,9 +396,7 @@ class TestCoverageSettingsProperties:
         st.lists(valid_spec_config(), min_size=0, max_size=3),
         st.one_of(st.none(), st.text(min_size=1, max_size=30)),
     )
-    def test_is_enabled_trichotomy(
-        self, spec: str | None, specs: list, config_error: str | None
-    ) -> None:
+    def test_is_enabled_trichotomy(self, spec: str | None, specs: list, config_error: str | None) -> None:
         """is_enabled() is True iff spec, specs, or config_error is truthy."""
         settings = CoverageSettings(spec=spec, specs=specs, config_error=config_error)
         expected = spec is not None or bool(specs) or config_error is not None

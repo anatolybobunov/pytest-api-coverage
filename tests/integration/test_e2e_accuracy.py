@@ -3,12 +3,12 @@
 These tests verify that coverage numbers in reports are correct end-to-end,
 not just that files are created or terminal output is non-empty.
 """
+
 from __future__ import annotations
 
 import json
 
 import pytest
-
 
 ACCURACY_SPEC = """
 openapi: "3.0.0"

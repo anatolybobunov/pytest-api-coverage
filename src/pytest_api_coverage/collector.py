@@ -12,9 +12,7 @@ from pytest_api_coverage.models import HTTPInteraction
 
 logger = logging.getLogger("pytest_api_coverage")
 
-_current_test_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "_current_test_var", default=None
-)
+_current_test_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("_current_test_var", default=None)
 
 
 @runtime_checkable
