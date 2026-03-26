@@ -69,4 +69,11 @@ def _parse_spec_entry(entry: dict[str, Any], index: int) -> SpecConfig | None:
     if swagger_path and swagger_url:
         logger.warning("Spec '%s' has both 'swagger_path' and 'swagger_url', skipping", name)
         return None
-    return SpecConfig(name=name, api_filters=api_filters, swagger_path=swagger_path, swagger_url=swagger_url)
+    strip_prefixes = entry.get("strip_prefixes", [])
+    return SpecConfig(
+        name=name,
+        api_filters=api_filters,
+        swagger_path=swagger_path,
+        swagger_url=swagger_url,
+        strip_prefixes=strip_prefixes,
+    )

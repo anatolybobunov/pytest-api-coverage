@@ -313,3 +313,34 @@ class TestMultiSpecLoaderProperties:
             assert isinstance(settings, dict)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_strip_prefixes_per_spec(tmp_path):
+    """strip_prefixes is parsed per spec entry."""
+    config = tmp_path / "coverage-config.yaml"
+    config.write_text("""
+specs:
+  - name: symboldb
+    swagger_url: http://symboldb.test.zorg.sh/symboldb/api-docs.yaml
+    api_filters:
+      - http://symboldb.test.zorg.sh/symboldb
+    strip_prefixes:
+      - /symboldb
+""")
+    specs, _ = load_multi_spec_config(config)
+    assert len(specs) == 1
+    assert specs[0].strip_prefixes == ["/symboldb"]
+
+
+def test_strip_prefixes_defaults_to_empty(tmp_path):
+    """strip_prefixes defaults to [] when not specified."""
+    config = tmp_path / "coverage-config.yaml"
+    config.write_text("""
+specs:
+  - name: symboldb
+    swagger_url: http://example.com/spec.yaml
+    api_filters:
+      - http://symboldb.test.zorg.sh/symboldb
+""")
+    specs, _ = load_multi_spec_config(config)
+    assert specs[0].strip_prefixes == []
