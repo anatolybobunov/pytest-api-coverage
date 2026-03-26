@@ -351,3 +351,37 @@ class TestOrchestratorProperties:
             assert orch.unmatched_count == expected_unmatched
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_spec_config_strip_prefixes_field():
+    """SpecConfig accepts an optional strip_prefixes list."""
+    spec = SpecConfig(
+        name="sdb",
+        api_filters=["http://symboldb.test.zorg.sh/symboldb"],
+        swagger_path=None,
+        swagger_url="http://example.com/spec.yaml",
+        strip_prefixes=["/symboldb"],
+    )
+    assert spec.strip_prefixes == ["/symboldb"]
+
+
+def test_spec_config_strip_prefixes_default():
+    """SpecConfig.strip_prefixes defaults to empty list."""
+    spec = SpecConfig(
+        name="sdb",
+        api_filters=["http://symboldb.test.zorg.sh/symboldb"],
+        swagger_url="http://example.com/spec.yaml",
+    )
+    assert spec.strip_prefixes == []
+
+
+def test_spec_config_serialisation_roundtrip_with_strip_prefixes():
+    """SpecConfig.to_dict / from_dict roundtrip preserves strip_prefixes."""
+    original = SpecConfig(
+        name="sdb",
+        api_filters=["http://symboldb.test.zorg.sh/symboldb"],
+        swagger_url="http://example.com/spec.yaml",
+        strip_prefixes=["/symboldb"],
+    )
+    restored = SpecConfig.from_dict(original.to_dict())
+    assert restored.strip_prefixes == ["/symboldb"]

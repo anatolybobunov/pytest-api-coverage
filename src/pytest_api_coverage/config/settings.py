@@ -28,6 +28,7 @@ class SpecConfig:
     api_filters: list[str]
     swagger_path: str | Path | None = None
     swagger_url: str | None = None
+    strip_prefixes: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
@@ -67,6 +68,7 @@ class SpecConfig:
             api_filters=data["api_filters"],
             swagger_path=data.get("swagger_path"),
             swagger_url=data.get("swagger_url"),
+            strip_prefixes=data.get("strip_prefixes", []),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -83,6 +85,7 @@ class SpecConfig:
             "api_filters": self.api_filters,
             "swagger_path": str(self.swagger_path) if self.swagger_path is not None else None,
             "swagger_url": self.swagger_url,
+            "strip_prefixes": self.strip_prefixes,
         }
 
 
