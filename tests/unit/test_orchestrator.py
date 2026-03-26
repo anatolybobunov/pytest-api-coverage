@@ -385,3 +385,120 @@ def test_spec_config_serialisation_roundtrip_with_strip_prefixes():
     )
     restored = SpecConfig.from_dict(original.to_dict())
     assert restored.strip_prefixes == ["/symboldb"]
+
+
+def test_auto_strip_prefix_from_api_filter(tmp_path):
+    """Path prefix in api_filters is auto-stripped when matching request paths."""
+    spec_file = tmp_path / "spec.yaml"
+    spec_file.write_text("""
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+""")
+    settings = CoverageSettings(
+        specs=[
+            SpecConfig(
+                name="symboldb",
+                api_filters=["http://symboldb.test.zorg.sh/symboldb"],
+                swagger_path=spec_file,
+            ),
+        ]
+    )
+    from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+    orchestrator = MultiSpecOrchestrator(settings)
+
+    # Request to /symboldb/users should be matched to GET /users in spec
+    orchestrator.record_interaction(
+        "GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it"
+    )
+    report = orchestrator.generate_all_reports()
+    summary = report["symboldb"]["summary"]
+    assert summary["covered_endpoints"] == 1, "prefix /symboldb should have been stripped"
+
+
+def test_auto_strip_prefix_not_cross_contaminating(tmp_path):
+    """Auto-derived prefix from spec A does NOT strip from spec B requests."""
+    sdb_file = tmp_path / "sdb.yaml"
+    editor_file = tmp_path / "editor.yaml"
+    minimal = """
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /items:
+    get:
+      responses:
+        "200":
+          description: ok
+"""
+    sdb_file.write_text(minimal)
+    editor_file.write_text(minimal)
+
+    settings = CoverageSettings(
+        specs=[
+            SpecConfig(
+                name="symboldb",
+                api_filters=["http://symboldb.test.zorg.sh/symboldb"],
+                swagger_path=sdb_file,
+            ),
+            SpecConfig(
+                name="symboldb-editor",
+                api_filters=["http://symboldb.test.zorg.sh/symboldb-editor"],
+                swagger_path=editor_file,
+            ),
+        ]
+    )
+    from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+    orchestrator = MultiSpecOrchestrator(settings)
+
+    orchestrator.record_interaction(
+        "GET", "http://symboldb.test.zorg.sh/symboldb/items", 200, "test_sdb"
+    )
+    orchestrator.record_interaction(
+        "GET", "http://symboldb.test.zorg.sh/symboldb-editor/items", 200, "test_editor"
+    )
+    reports = orchestrator.generate_all_reports()
+    assert reports["symboldb"]["summary"]["covered_endpoints"] == 1
+    assert reports["symboldb-editor"]["summary"]["covered_endpoints"] == 1
+
+
+def test_explicit_strip_prefixes_respected(tmp_path):
+    """Explicit spec.strip_prefixes are used even if api_filters has no path."""
+    spec_file = tmp_path / "spec.yaml"
+    spec_file.write_text("""
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+""")
+    settings = CoverageSettings(
+        specs=[
+            SpecConfig(
+                name="sdb",
+                api_filters=["http://symboldb.test.zorg.sh"],
+                swagger_path=spec_file,
+                strip_prefixes=["/symboldb"],
+            ),
+        ]
+    )
+    from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+    orchestrator = MultiSpecOrchestrator(settings)
+    orchestrator.record_interaction(
+        "GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it"
+    )
+    report = orchestrator.generate_all_reports()
+    assert report["sdb"]["summary"]["covered_endpoints"] == 1

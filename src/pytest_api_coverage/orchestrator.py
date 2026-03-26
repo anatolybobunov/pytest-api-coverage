@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 from pytest_api_coverage.reporter import CoverageReporter
@@ -12,6 +13,21 @@ from pytest_api_coverage.utils import matches_filter_value
 from pytest_api_coverage.writers import write_reports
 
 logger = logging.getLogger("pytest_api_coverage")
+
+
+def _auto_strip_prefixes(api_filters: list[str]) -> list[str]:
+    """Extract path portions from api_filters URLs to use as strip prefixes.
+
+    Example: 'http://host/symboldb' → ['/symboldb']
+    Bare hostnames or filters with no meaningful path return nothing.
+    """
+    prefixes = []
+    for f in api_filters:
+        parsed = urlparse(f if f.startswith(("http://", "https://")) else f"http://{f}")
+        path = parsed.path.rstrip("/")
+        if path and path != "/":
+            prefixes.append(path)
+    return prefixes
 
 
 class MultiSpecOrchestrator:
@@ -44,9 +60,18 @@ class MultiSpecOrchestrator:
                 if source is None:
                     raise ValueError(f"Spec '{spec.name}' has no swagger_url or swagger_path configured")
                 swagger_spec = SwaggerParser.parse(source)
+                # Combine auto-derived prefixes (from api_filters paths) with explicit ones
+                auto = _auto_strip_prefixes(spec.api_filters)
+                seen: set[str] = set()
+                combined: list[str] = []
+                for p in auto + spec.strip_prefixes:
+                    if p not in seen:
+                        seen.add(p)
+                        combined.append(p)
                 reporter = CoverageReporter(
                     swagger_spec,
                     include_base_urls=set(spec.api_filters),
+                    strip_prefixes=combined or None,
                 )
                 self._reporters[spec.name] = reporter
                 self._specs.append(spec)
@@ -109,6 +134,25 @@ class MultiSpecOrchestrator:
                 if self._matches_spec(url, filter_value):
                     return spec.name
         return None
+
+    def record_interaction(
+        self, method: str, url: str, status_code: int, test_name: str
+    ) -> None:
+        """Convenience wrapper: build an interaction dict and route it.
+
+        Equivalent to calling ``process_interactions`` with a single interaction
+        constructed from the given parameters.
+        """
+        from urllib.parse import urlparse as _urlparse
+
+        parsed = _urlparse(url)
+        path = parsed.path or "/"
+        interaction: dict[str, Any] = {
+            "request": {"url": url, "method": method, "path": path},
+            "response": {"status_code": status_code},
+            "test_name": test_name,
+        }
+        self.process_interactions([interaction])
 
     def process_interactions(self, interactions: list[dict[str, Any]]) -> None:
         """Route each interaction to its reporter.
