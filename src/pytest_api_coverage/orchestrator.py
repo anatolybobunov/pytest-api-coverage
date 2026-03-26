@@ -60,11 +60,11 @@ class MultiSpecOrchestrator:
                 if source is None:
                     raise ValueError(f"Spec '{spec.name}' has no swagger_url or swagger_path configured")
                 swagger_spec = SwaggerParser.parse(source)
-                # Combine auto-derived prefixes (from api_filters paths) with explicit ones
+                # Combine explicit prefixes with auto-derived ones (explicit wins on duplicates)
                 auto = _auto_strip_prefixes(spec.api_filters)
                 seen: set[str] = set()
                 combined: list[str] = []
-                for p in auto + spec.strip_prefixes:
+                for p in spec.strip_prefixes + auto:
                     if p not in seen:
                         seen.add(p)
                         combined.append(p)

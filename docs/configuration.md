@@ -67,6 +67,7 @@ The file can also be written as JSON (`coverage-config.json`) with the same stru
 | `api_filters` | list of strings | yes | Filter strings matched against intercepted request URLs (substring match, case-insensitive); only matching requests are attributed to this spec |
 | `swagger_path` | string | no | Path to a local OpenAPI/Swagger spec file (mutually exclusive with `swagger_url`) |
 | `swagger_url` | string | no | URL to a remote OpenAPI/Swagger spec (mutually exclusive with `swagger_path`) |
+| `strip_prefixes` | list of strings | no | Path prefixes to strip before matching request paths to spec endpoints. Defaults to `[]`. Auto-derived from `api_filters` URL paths — e.g. `http://host/symboldb` automatically strips `/symboldb`. Set this explicitly only when auto-derivation is insufficient. |
 
 Each spec entry must provide exactly one of `swagger_path` or `swagger_url`. Entries
 missing `name`, `api_filters`, or that supply both `swagger_path` and `swagger_url` are
@@ -112,6 +113,27 @@ pytest tests/ \
 When filtering by name, the value must exactly match the `name` field of one of the
 entries in the config file. If no match is found, pytest exits with a `UsageError`
 listing the available spec names.
+
+### Shared domain with path prefixes
+
+When multiple specs share a domain but differ by path prefix, set the full URL (including prefix) in `api_filters`. The plugin automatically strips the prefix when matching request paths against spec endpoints:
+
+```yaml
+specs:
+  - name: symboldb
+    swagger_url: http://symboldb.test.zorg.sh/symboldb/api-docs.yaml
+    api_filters:
+      - http://symboldb.test.zorg.sh/symboldb
+    # /symboldb is auto-stripped from request paths before spec matching
+
+  - name: symboldb-editor
+    swagger_url: http://symboldb.test.zorg.sh/symboldb-editor/api-docs.yaml
+    api_filters:
+      - http://symboldb.test.zorg.sh/symboldb-editor
+    # /symboldb-editor is auto-stripped automatically
+```
+
+A request to `http://symboldb.test.zorg.sh/symboldb/users` is matched against `GET /users` in the `symboldb` spec.
 
 ## Plugin Activation
 
