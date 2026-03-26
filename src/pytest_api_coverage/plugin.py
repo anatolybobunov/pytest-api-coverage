@@ -14,7 +14,7 @@ from pytest_api_coverage.collector import CoverageCollector
 from pytest_api_coverage.config.settings import CoverageSettings
 from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 from pytest_api_coverage.reporter import CoverageReporter
-from pytest_api_coverage.schemas import SwaggerParser, SwaggerSpec
+from pytest_api_coverage.schemas import SwaggerParser, SwaggerSpec, format_spec_load_error
 from pytest_api_coverage.terminal import print_multi_spec_summary, print_terminal_summary
 from pytest_api_coverage.writers import write_reports
 
@@ -206,8 +206,9 @@ class _SwaggerLoadMixin:
         try:
             self.swagger_spec = SwaggerParser.parse(self.settings.spec)
         except Exception as e:
-            self._swagger_load_error = str(e)
-            logger.warning("Failed to load swagger: %s", e, exc_info=True)
+            self._swagger_load_error = format_spec_load_error(e)
+            logger.warning("Failed to load swagger: %s", self._swagger_load_error)
+            logger.debug("Traceback for failed swagger load:", exc_info=True)
 
 
 class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
@@ -274,7 +275,8 @@ class CoverageSinglePlugin(_InterceptionMixin, _SwaggerLoadMixin):
         elif self._swagger_load_error:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
-                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}",
+                yellow=True,
             )
         elif self._no_requests_captured:
             terminalreporter.write_sep("=", "API Coverage Summary")
@@ -400,7 +402,8 @@ class CoverageMasterPlugin(_SwaggerLoadMixin):
         elif self._swagger_load_error:
             terminalreporter.write_sep("=", "API Coverage Summary")
             terminalreporter.write_line(
-                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}"
+                f"[api-coverage] No report generated — spec failed to load: {self._swagger_load_error}",
+                yellow=True,
             )
         elif self.swagger_spec and not self.worker_data:
             terminalreporter.write_sep("=", "API Coverage Summary")

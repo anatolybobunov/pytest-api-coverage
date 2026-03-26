@@ -19,8 +19,8 @@ pytest tests/ -n 4 --coverage-spec=swagger.json
 |--------|---------|-------------|
 | `--coverage-spec` | — | Path or URL to OpenAPI/Swagger spec |
 | `--coverage-output` | `api-coverage-report` | Output directory for reports |
-| `--coverage-format` | `html` | Output format(s) (default: `html`) |
-| `--coverage-strip-prefix` | — | Strip URL prefix from recorded paths |
+| `--coverage-format` | `html` | Comma-separated report format(s). Supported: `json`, `csv`, `html`, `all` (generates all three formats at once) |
+| `--coverage-strip-prefix` | — | Comma-separated path prefixes to strip from request URLs before matching against the spec |
 | `--coverage-split-by-origin` | `false` | Split coverage by origin URL |
 | `--coverage-config` | — | Path to multi-spec config file |
 | `--coverage-spec-name` | — | Label for single CLI spec, or filter from config |

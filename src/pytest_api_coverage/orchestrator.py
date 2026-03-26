@@ -7,7 +7,7 @@ from typing import Any
 
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
 from pytest_api_coverage.reporter import CoverageReporter
-from pytest_api_coverage.schemas import SwaggerParser
+from pytest_api_coverage.schemas import SwaggerParser, format_spec_load_error
 from pytest_api_coverage.utils import matches_filter_value
 from pytest_api_coverage.writers import write_reports
 
@@ -51,8 +51,10 @@ class MultiSpecOrchestrator:
                 self._reporters[spec.name] = reporter
                 self._specs.append(spec)
             except Exception as e:
-                logger.warning("Failed to load spec '%s': %s", spec.name, e, exc_info=True)
-                self._failed_specs.append((spec.name, str(e)))
+                msg = format_spec_load_error(e)
+                logger.warning("Failed to load spec '%s': %s", spec.name, msg)
+                logger.debug("Traceback for failed spec '%s':", spec.name, exc_info=True)
+                self._failed_specs.append((spec.name, msg))
 
     def _warn_overlapping_urls(self) -> None:
         """Check for URL overlap across specs and warn."""

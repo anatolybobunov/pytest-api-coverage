@@ -6,6 +6,7 @@ from pytest_api_coverage.schemas.swagger import (
     SwaggerParser,
     SwaggerResponse,
     SwaggerSpec,
+    format_spec_load_error,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "SwaggerParser",
     "SwaggerResponse",
     "SwaggerSpec",
+    "format_spec_load_error",
 ]

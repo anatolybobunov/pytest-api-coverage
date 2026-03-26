@@ -87,7 +87,7 @@ def print_multi_spec_summary(
     if failed_specs:
         terminalreporter.write_sep("=", "API Coverage Summary")
         for name, error in failed_specs:
-            terminalreporter.write_line(f"[api-coverage] FAILED to load spec '{name}': {error}")
+            terminalreporter.write_line(f"[api-coverage] Failed to load spec '{name}': {error}", yellow=True)
         if not specs:
             return
     elif not specs:

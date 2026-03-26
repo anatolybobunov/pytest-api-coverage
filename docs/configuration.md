@@ -31,7 +31,7 @@ persisting CLI flags into a pytest config file.
 
 ### File Format
 
-Create a `coverage-config.yaml` file at the project root:
+Create a `coverage-config.yaml` (or `coverage-config.yml`) file at the project root:
 
 ```yaml
 output_dir: api-coverage-report
@@ -47,7 +47,7 @@ specs:
       - http://localhost:8002
 ```
 
-The file can also be written as JSON (`coverage-config.json`) with the same structure.
+The file can also be written as JSON (`coverage-config.json`) with the same structure. Both `.yaml` and `.yml` extensions are supported.
 
 ### Supported Keys (Schema Reference)
 
@@ -56,7 +56,7 @@ The file can also be written as JSON (`coverage-config.json`) with the same stru
 | Key | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `output_dir` | string | no | `api-coverage-report` | Directory where reports are written |
-| `formats` | list of strings | no | `[html]` | Report formats to generate; valid values: `html`, `json`, `csv`, `all` |
+| `formats` | list of strings | no | `[html]` | Report formats to generate; valid values: `html`, `json`, `csv`, `all` (`all` expands to all three formats) |
 | `specs` | list | yes | — | One or more spec configurations (see below) |
 
 **Per-spec keys (each entry under `specs`):**
@@ -112,6 +112,16 @@ pytest tests/ \
 When filtering by name, the value must exactly match the `name` field of one of the
 entries in the config file. If no match is found, pytest exits with a `UsageError`
 listing the available spec names.
+
+## Plugin Activation
+
+The plugin only activates when at least one of the following is provided:
+
+- `--coverage-spec` flag
+- `--coverage-config` flag
+- A `coverage-config.yaml` / `coverage-config.yml` / `coverage-config.json` file at the project root
+
+If none of these are present, the plugin silently disables itself and does not affect the test run.
 
 ## See Also
 

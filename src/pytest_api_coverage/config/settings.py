@@ -152,7 +152,7 @@ class CoverageSettings:
         Raises:
             ValueError: If local file doesn't exist
         """
-        value_str = str(value)
+        value_str = str(value).strip("\"'")
 
         # Support URL sources (pass through for later fetching)
         if value_str.startswith(("http://", "https://")):

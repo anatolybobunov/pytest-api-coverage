@@ -73,6 +73,29 @@ class SwaggerSpec:
         return None
 
 
+def format_spec_load_error(error: Exception) -> str:
+    """Return a concise, human-readable message for a spec load failure.
+
+    Converts verbose httpx/network exceptions into one-line hints without
+    exposing the full traceback.  Falls back to ``str(error)`` for unknown
+    exception types.
+    """
+    if httpx is not None:
+        if isinstance(error, httpx.HTTPStatusError):
+            code = error.response.status_code
+            if 300 <= code < 400:
+                location = error.response.headers.get("location", "")
+                hint = f" → {location}" if location else ""
+                return f"HTTP {code} redirect{hint} — spec URL may require authentication"
+            reason = error.response.reason_phrase or str(code)
+            return f"HTTP {code} {reason}"
+        if isinstance(error, httpx.TimeoutException):
+            return "Connection timed out while fetching spec"
+        if isinstance(error, httpx.ConnectError):
+            return f"Connection failed: {error}"
+    return str(error)
+
+
 class SwaggerParser:
     """Parser for Swagger 2.0 and OpenAPI 3.x specifications.
 
