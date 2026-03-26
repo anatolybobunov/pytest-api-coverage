@@ -204,8 +204,8 @@ class TestUnmatchedCounter:
 
 
 class TestSpecLoadExcInfo:
-    def test_failed_spec_load_includes_traceback_in_log(self, tmp_path: Path, caplog) -> None:
-        """When a spec fails to load, exc_info must be present in the log record."""
+    def test_failed_spec_load_traceback_at_debug_not_warning(self, tmp_path: Path, caplog) -> None:
+        """When a spec fails to load, traceback goes to DEBUG (not WARNING)."""
         bad_yaml = tmp_path / "bad.yaml"
         bad_yaml.write_text(": invalid: yaml [unclosed", encoding="utf-8")
 
@@ -219,13 +219,21 @@ class TestSpecLoadExcInfo:
             ]
         )
 
-        with caplog.at_level(logging.WARNING, logger="pytest_api_coverage"):
+        with caplog.at_level(logging.DEBUG, logger="pytest_api_coverage"):
             from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
 
             MultiSpecOrchestrator(settings)
 
-        assert any(r.exc_info is not None for r in caplog.records), (
-            "Expected exc_info in log record — add exc_info=True to logger.warning in _load_all_specs"
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
+
+        # WARNING should be clean (no traceback)
+        assert all(r.exc_info is None for r in warning_records), (
+            "WARNING log should not include traceback — keep exc_info on DEBUG only"
+        )
+        # Traceback should appear at DEBUG level
+        assert any(r.exc_info is not None for r in debug_records), (
+            "Expected exc_info in DEBUG log record — add exc_info=True to logger.debug in _load_all_specs"
         )
 
 
