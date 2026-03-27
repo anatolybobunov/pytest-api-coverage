@@ -420,12 +420,11 @@ paths:
         ]
     )
     from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
     orchestrator = MultiSpecOrchestrator(settings)
 
     # Request to /symboldb/users should be matched to GET /users in spec
-    orchestrator.record_interaction(
-        "GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it"
-    )
+    orchestrator.record_interaction("GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it")
     report = orchestrator.generate_all_reports()
     summary = report["symboldb"]["summary"]
     assert summary["covered_endpoints"] == 1, "prefix /symboldb should have been stripped"
@@ -465,14 +464,11 @@ paths:
         ]
     )
     from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
     orchestrator = MultiSpecOrchestrator(settings)
 
-    orchestrator.record_interaction(
-        "GET", "http://symboldb.test.zorg.sh/symboldb/items", 200, "test_sdb"
-    )
-    orchestrator.record_interaction(
-        "GET", "http://symboldb.test.zorg.sh/symboldb-editor/items", 200, "test_editor"
-    )
+    orchestrator.record_interaction("GET", "http://symboldb.test.zorg.sh/symboldb/items", 200, "test_sdb")
+    orchestrator.record_interaction("GET", "http://symboldb.test.zorg.sh/symboldb-editor/items", 200, "test_editor")
     reports = orchestrator.generate_all_reports()
     assert reports["symboldb"]["summary"]["covered_endpoints"] == 1
     assert reports["symboldb-editor"]["summary"]["covered_endpoints"] == 1
@@ -504,9 +500,8 @@ paths:
         ]
     )
     from pytest_api_coverage.orchestrator import MultiSpecOrchestrator
+
     orchestrator = MultiSpecOrchestrator(settings)
-    orchestrator.record_interaction(
-        "GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it"
-    )
+    orchestrator.record_interaction("GET", "http://symboldb.test.zorg.sh/symboldb/users", 200, "test_it")
     report = orchestrator.generate_all_reports()
     assert report["sdb"]["summary"]["covered_endpoints"] == 1

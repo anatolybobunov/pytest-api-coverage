@@ -135,9 +135,7 @@ class MultiSpecOrchestrator:
                     return spec.name
         return None
 
-    def record_interaction(
-        self, method: str, url: str, status_code: int, test_name: str
-    ) -> None:
+    def record_interaction(self, method: str, url: str, status_code: int, test_name: str) -> None:
         """Convenience wrapper: build an interaction dict and route it.
 
         Equivalent to calling ``process_interactions`` with a single interaction
