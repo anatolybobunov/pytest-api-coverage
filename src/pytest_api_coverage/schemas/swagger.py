@@ -89,10 +89,6 @@ def format_spec_load_error(error: Exception) -> str:
     if httpx is not None:
         if isinstance(error, httpx.HTTPStatusError):
             code = error.response.status_code
-            if 300 <= code < 400:
-                location = error.response.headers.get("location", "")
-                hint = f" → {location}" if location else ""
-                return f"HTTP {code} redirect{hint} — spec URL may require authentication"
             reason = error.response.reason_phrase or str(code)
             return f"HTTP {code} {reason}"
         if isinstance(error, httpx.TimeoutException):
@@ -104,11 +100,8 @@ def format_spec_load_error(error: Exception) -> str:
             response = getattr(error, "response", None)
             if response is not None:
                 code = response.status_code
-                if 300 <= code < 400:
-                    location = response.headers.get("location", "")
-                    hint = f" → {location}" if location else ""
-                    return f"HTTP {code} redirect{hint} — spec URL may require authentication"
                 return f"HTTP {code} {response.reason or str(code)}"
+            return str(error) or "HTTP error (no response details available)"
         if isinstance(error, requests_lib.exceptions.Timeout):
             return "Connection timed out while fetching spec"
         if isinstance(error, requests_lib.exceptions.ConnectionError):
@@ -139,7 +132,8 @@ class SwaggerParser:
 
         Raises:
             FileNotFoundError: If local file doesn't exist
-            httpx.HTTPError: If URL fetch fails
+            httpx.HTTPStatusError: If URL fetch fails (when httpx is installed)
+            requests.exceptions.HTTPError: If URL fetch fails (when requests is used)
             ValueError: If specification format is invalid
         """
         source_str = str(source)

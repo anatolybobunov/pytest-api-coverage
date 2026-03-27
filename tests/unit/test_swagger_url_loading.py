@@ -114,7 +114,7 @@ class TestSwaggerParserUrlLoading:
         """SwaggerParser.parse raises ImportError when neither httpx nor requests is installed."""
         with patch("pytest_api_coverage.schemas.swagger.httpx", None):
             with patch("pytest_api_coverage.schemas.swagger.requests_lib", None):
-                with pytest.raises(ImportError, match="httpx"):
+                with pytest.raises(ImportError, match=r"pip install httpx.*pip install requests"):
                     SwaggerParser.parse("https://example.com/openapi.json")
 
     def test_parse_json_from_url_requests_fallback(self) -> None:
@@ -158,16 +158,36 @@ class TestSwaggerParserUrlLoading:
         with patch("pytest_api_coverage.schemas.swagger.httpx") as mock_httpx:
             mock_httpx.Client.return_value = mock_client
             with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
-                SwaggerParser.parse("https://example.com/openapi.json")
+                spec = SwaggerParser.parse("https://example.com/openapi.json")
 
+        assert spec is not None
+        assert any(e.path == "/users" and e.method == "GET" for e in spec.endpoints)
         mock_requests.get.assert_not_called()
+
+    def test_parse_raises_on_http_error_requests_fallback(self) -> None:
+        """SwaggerParser.parse propagates HTTP errors from the requests fallback."""
+        import requests as real_requests
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = real_requests.exceptions.HTTPError(
+            "404 Not Found",
+            response=mock_response,
+        )
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_response
+
+        with patch("pytest_api_coverage.schemas.swagger.httpx", None):
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
+                with pytest.raises(real_requests.exceptions.HTTPError):
+                    SwaggerParser.parse("https://example.com/missing.json")
+
+
+real_requests = pytest.importorskip("requests")
 
 
 class TestFormatSpecLoadErrorRequests:
     def test_http_error_with_response(self) -> None:
         """format_spec_load_error formats requests.HTTPError with status code."""
-        import requests as real_requests
-
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.reason = "Not Found"
@@ -177,32 +197,14 @@ class TestFormatSpecLoadErrorRequests:
         assert "404" in result
         assert "Not Found" in result
 
-    def test_http_error_redirect(self) -> None:
-        """format_spec_load_error returns redirect hint for 3xx responses."""
-        import requests as real_requests
-
-        mock_response = MagicMock()
-        mock_response.status_code = 301
-        mock_response.reason = "Moved Permanently"
-        mock_response.headers = {"location": "https://new.example.com/api.json"}
-        err = real_requests.exceptions.HTTPError(response=mock_response)
-
-        result = format_spec_load_error(err)
-        assert "301" in result
-        assert "redirect" in result
-
     def test_timeout_error(self) -> None:
         """format_spec_load_error returns timeout message for requests.Timeout."""
-        import requests as real_requests
-
         err = real_requests.exceptions.Timeout("timed out")
         result = format_spec_load_error(err)
         assert "timed out" in result.lower()
 
     def test_connection_error(self) -> None:
         """format_spec_load_error returns connection failed for requests.ConnectionError."""
-        import requests as real_requests
-
         err = real_requests.exceptions.ConnectionError("refused")
         result = format_spec_load_error(err)
         assert "Connection failed" in result
