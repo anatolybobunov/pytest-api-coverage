@@ -69,6 +69,20 @@ addopts = "-p pytester"
 [tool.hatch.build.targets.wheel]
 packages = ["src/pytest_api_coverage"]
 
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+tag_message = "Release v{new_version}"
+commit_message = "bump: version {current_version} -> {new_version}"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+key_path = "project.version"
+
 [tool.ruff]
 line-length = 120
 target-version = "py311"

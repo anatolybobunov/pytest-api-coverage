@@ -45,7 +45,8 @@ class TestSwaggerLoadMixinExcInfo:
         )
         # Traceback should appear at DEBUG level
         assert any(r.exc_info is not None for r in debug_records), (
-            "Expected exc_info in DEBUG log record — add exc_info=True to logger.debug in _SwaggerLoadMixin._load_swagger"
+            "Expected exc_info in DEBUG log record"
+            " — add exc_info=True to logger.debug in _SwaggerLoadMixin._load_swagger"
         )
 
     def test_failed_swagger_load_sets_error_string(self, tmp_path: Path) -> None:

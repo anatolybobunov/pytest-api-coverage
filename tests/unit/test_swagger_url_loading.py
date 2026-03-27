@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pytest_api_coverage.schemas.swagger import SwaggerParser  # noqa: E402
+from pytest_api_coverage.schemas.swagger import SwaggerParser, format_spec_load_error  # noqa: E402
 
 MINIMAL_OPENAPI_JSON = """{
   "openapi": "3.0.0",
@@ -110,8 +110,108 @@ class TestSwaggerParserUrlLoading:
             with pytest.raises(real_httpx.HTTPStatusError):
                 SwaggerParser.parse("https://example.com/missing.json")
 
-    def test_parse_raises_when_httpx_unavailable(self) -> None:
-        """SwaggerParser.parse raises ImportError when httpx is not installed."""
+    def test_parse_raises_when_both_unavailable(self) -> None:
+        """SwaggerParser.parse raises ImportError when neither httpx nor requests is installed."""
         with patch("pytest_api_coverage.schemas.swagger.httpx", None):
-            with pytest.raises(ImportError, match="httpx"):
-                SwaggerParser.parse("https://example.com/openapi.json")
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", None):
+                with pytest.raises(ImportError, match=r"pip install httpx.*pip install requests"):
+                    SwaggerParser.parse("https://example.com/openapi.json")
+
+    def test_parse_json_from_url_requests_fallback(self) -> None:
+        """SwaggerParser.parse uses requests when httpx is not installed."""
+        mock_response = _make_mock_response(MINIMAL_OPENAPI_JSON, "application/json")
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_response
+
+        with patch("pytest_api_coverage.schemas.swagger.httpx", None):
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
+                spec = SwaggerParser.parse("https://example.com/openapi.json")
+
+        assert spec is not None
+        assert any(e.path == "/users" and e.method == "GET" for e in spec.endpoints)
+        mock_requests.get.assert_called_once_with(
+            "https://example.com/openapi.json", timeout=SwaggerParser.REQUEST_TIMEOUT
+        )
+
+    def test_parse_yaml_from_url_requests_fallback(self) -> None:
+        """SwaggerParser.parse uses requests to load a YAML spec when httpx is absent."""
+        mock_response = _make_mock_response(MINIMAL_OPENAPI_YAML, "application/yaml")
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_response
+
+        with patch("pytest_api_coverage.schemas.swagger.httpx", None):
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
+                spec = SwaggerParser.parse("https://example.com/openapi.yaml")
+
+        assert spec is not None
+        assert any(e.path == "/users" and e.method == "GET" for e in spec.endpoints)
+
+    def test_parse_prefers_httpx_over_requests(self) -> None:
+        """When both httpx and requests are available, httpx is used."""
+        mock_client = MagicMock()
+        mock_client.__enter__ = lambda s: s
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get.return_value = _make_mock_response(MINIMAL_OPENAPI_JSON, "application/json")
+
+        mock_requests = MagicMock()
+
+        with patch("pytest_api_coverage.schemas.swagger.httpx") as mock_httpx:
+            mock_httpx.Client.return_value = mock_client
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
+                spec = SwaggerParser.parse("https://example.com/openapi.json")
+
+        assert spec is not None
+        assert any(e.path == "/users" and e.method == "GET" for e in spec.endpoints)
+        mock_requests.get.assert_not_called()
+
+    def test_parse_raises_on_http_error_requests_fallback(self) -> None:
+        """SwaggerParser.parse propagates HTTP errors from the requests fallback."""
+        import requests as real_requests
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = real_requests.exceptions.HTTPError(
+            "404 Not Found",
+            response=mock_response,
+        )
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_response
+
+        with patch("pytest_api_coverage.schemas.swagger.httpx", None):
+            with patch("pytest_api_coverage.schemas.swagger.requests_lib", mock_requests):
+                with pytest.raises(real_requests.exceptions.HTTPError):
+                    SwaggerParser.parse("https://example.com/missing.json")
+
+
+real_requests = pytest.importorskip("requests")
+
+
+class TestFormatSpecLoadErrorRequests:
+    def test_http_error_with_response(self) -> None:
+        """format_spec_load_error formats requests.HTTPError with status code."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.reason = "Not Found"
+        err = real_requests.exceptions.HTTPError(response=mock_response)
+
+        result = format_spec_load_error(err)
+        assert "404" in result
+        assert "Not Found" in result
+
+    def test_timeout_error(self) -> None:
+        """format_spec_load_error returns timeout message for requests.Timeout."""
+        err = real_requests.exceptions.Timeout("timed out")
+        result = format_spec_load_error(err)
+        assert "timed out" in result.lower()
+
+    def test_connection_error(self) -> None:
+        """format_spec_load_error returns connection failed for requests.ConnectionError."""
+        err = real_requests.exceptions.ConnectionError("refused")
+        result = format_spec_load_error(err)
+        assert "Connection failed" in result
+
+    def test_requests_errors_skipped_when_requests_unavailable(self) -> None:
+        """format_spec_load_error falls back to str() when requests_lib is None."""
+        err = ValueError("some generic error")
+        with patch("pytest_api_coverage.schemas.swagger.requests_lib", None):
+            result = format_spec_load_error(err)
+        assert result == "some generic error"

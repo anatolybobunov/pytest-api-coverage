@@ -12,6 +12,12 @@ try:
     import httpx
 except ImportError:
     httpx = None  # type: ignore[assignment]
+
+try:
+    import requests as requests_lib
+except ImportError:
+    requests_lib = None  # type: ignore[assignment]
+
 import yaml
 
 
@@ -83,15 +89,22 @@ def format_spec_load_error(error: Exception) -> str:
     if httpx is not None:
         if isinstance(error, httpx.HTTPStatusError):
             code = error.response.status_code
-            if 300 <= code < 400:
-                location = error.response.headers.get("location", "")
-                hint = f" → {location}" if location else ""
-                return f"HTTP {code} redirect{hint} — spec URL may require authentication"
             reason = error.response.reason_phrase or str(code)
             return f"HTTP {code} {reason}"
         if isinstance(error, httpx.TimeoutException):
             return "Connection timed out while fetching spec"
         if isinstance(error, httpx.ConnectError):
+            return f"Connection failed: {error}"
+    if requests_lib is not None:
+        if isinstance(error, requests_lib.exceptions.HTTPError):
+            response = getattr(error, "response", None)
+            if response is not None:
+                code = response.status_code
+                return f"HTTP {code} {response.reason or str(code)}"
+            return str(error) or "HTTP error (no response details available)"
+        if isinstance(error, requests_lib.exceptions.Timeout):
+            return "Connection timed out while fetching spec"
+        if isinstance(error, requests_lib.exceptions.ConnectionError):
             return f"Connection failed: {error}"
     return str(error)
 
@@ -119,7 +132,8 @@ class SwaggerParser:
 
         Raises:
             FileNotFoundError: If local file doesn't exist
-            httpx.HTTPError: If URL fetch fails
+            httpx.HTTPStatusError: If URL fetch fails (when httpx is installed)
+            requests.exceptions.HTTPError: If URL fetch fails (when requests is used)
             ValueError: If specification format is invalid
         """
         source_str = str(source)
@@ -139,20 +153,28 @@ class SwaggerParser:
         Returns:
             SwaggerSpec: Parsed specification
         """
-        if httpx is None:
-            raise ImportError("httpx is required to fetch remote specs. Install it: pip install httpx")
-        with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
-            response = client.get(url)
+        if httpx is not None:
+            with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if "yaml" in content_type or url.endswith((".yaml", ".yml")):
+                    data = yaml.safe_load(response.text)
+                else:
+                    data = response.json()
+        elif requests_lib is not None:
+            response = requests_lib.get(url, timeout=cls.REQUEST_TIMEOUT)
             response.raise_for_status()
-
             content_type = response.headers.get("content-type", "")
-
-            # Determine format from content-type or URL extension
             if "yaml" in content_type or url.endswith((".yaml", ".yml")):
                 data = yaml.safe_load(response.text)
             else:
                 data = response.json()
-
+        else:
+            raise ImportError(
+                "A HTTP client is required to fetch remote specs. "
+                "Install one: pip install httpx  or  pip install requests"
+            )
         return cls._parse_spec(data, source)
 
     @classmethod

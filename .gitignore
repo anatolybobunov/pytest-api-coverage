@@ -27,6 +27,7 @@ build/
 # AI
 .planning/
 .worktrees/
+**/*plan*/**
 
 # Dev
 example_*
