@@ -1,0 +1,39 @@
+name: PR Title (Conventional Commits)
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [dev, main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Conventional Commits format
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          # Pattern: type(optional-scope): description
+          # Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+'
+
+          if [[ ! "$TITLE" =~ $PATTERN ]]; then
+            echo "::error::PR title must follow Conventional Commits format."
+            echo ""
+            echo "Examples:"
+            echo "  feat: add user authentication"
+            echo "  fix(parser): handle empty YAML files"
+            echo "  feat!: redesign config format (BREAKING CHANGE)"
+            echo "  docs: update installation guide"
+            echo ""
+            echo "Format: <type>(<optional scope>): <description>"
+            echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            exit 1
+          fi
+
+          echo "PR title is valid."

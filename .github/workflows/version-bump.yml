@@ -1,0 +1,73 @@
+name: Version Bump
+
+on:
+  push:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  bump:
+    name: Bump version and create release
+    runs-on: ubuntu-latest
+    # Skip commits created by this workflow itself (prevent infinite loop)
+    if: "!startsWith(github.event.head_commit.message, 'bump: version')"
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.BUMP_TOKEN }}
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install bump-my-version
+        run: uv tool install bump-my-version
+
+      - name: Determine bump type from conventional commits
+        id: bump-type
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" "$LAST_TAG"..HEAD)
+          fi
+
+          echo "Commits since last tag:"
+          echo "$COMMITS"
+
+          if echo "$COMMITS" | grep -qE "(BREAKING CHANGE|^.+!:)"; then
+            PART="major"
+          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+            PART="minor"
+          else
+            PART="patch"
+          fi
+
+          echo "Detected bump type: $PART"
+          echo "part=$PART" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        run: bump-my-version bump ${{ steps.bump-type.outputs.part }}
+
+      - name: Push commit and tag
+        run: git push origin main --follow-tags
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.BUMP_TOKEN }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          gh release create "$TAG" \
+            --target main \
+            --title "$TAG" \
+            --generate-notes
