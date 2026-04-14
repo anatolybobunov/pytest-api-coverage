@@ -6,10 +6,9 @@ from pathlib import Path
 
 import pytest
 from hypothesis import given
+from strategies import valid_name, valid_path_str, valid_spec_config, valid_url, valid_url_list
 
 from pytest_api_coverage.config.settings import SpecConfig
-
-from strategies import valid_name, valid_path_str, valid_spec_config, valid_url, valid_url_list
 
 
 class TestSpecConfigCreation:

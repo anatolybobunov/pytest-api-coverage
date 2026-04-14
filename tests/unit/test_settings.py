@@ -7,10 +7,9 @@ from typing import Any
 
 from hypothesis import given
 from hypothesis import strategies as st
+from strategies import valid_coverage_settings, valid_spec_config, valid_url
 
 from pytest_api_coverage.config.settings import CoverageSettings, SpecConfig
-
-from strategies import valid_coverage_settings, valid_spec_config, valid_url
 
 
 def _make_mock_config(mocker: Any, overrides: dict[str, Any] | None = None) -> Any:
