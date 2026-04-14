@@ -11,7 +11,13 @@ from urllib.parse import urlparse
 try:
     import httpx
 except ImportError:
-    httpx = None  # type: ignore[assignment]
+    httpx = None  # type: ignore[assignment]  # optional dependency; checked at runtime before use
+
+try:
+    import requests as requests_lib
+except ImportError:
+    requests_lib = None  # type: ignore[assignment]  # fallback when httpx is not installed
+
 import yaml
 
 
@@ -80,18 +86,29 @@ def format_spec_load_error(error: Exception) -> str:
     exposing the full traceback.  Falls back to ``str(error)`` for unknown
     exception types.
     """
+    # Guard with `is not None` before isinstance so the branch is skipped entirely
+    # when the library is not installed — avoids NameError on the exception classes.
     if httpx is not None:
         if isinstance(error, httpx.HTTPStatusError):
             code = error.response.status_code
-            if 300 <= code < 400:
-                location = error.response.headers.get("location", "")
-                hint = f" → {location}" if location else ""
-                return f"HTTP {code} redirect{hint} — spec URL may require authentication"
             reason = error.response.reason_phrase or str(code)
             return f"HTTP {code} {reason}"
         if isinstance(error, httpx.TimeoutException):
             return "Connection timed out while fetching spec"
         if isinstance(error, httpx.ConnectError):
+            return f"Connection failed: {error}"
+    if requests_lib is not None:
+        if isinstance(error, requests_lib.exceptions.HTTPError):
+            # requests attaches the response object to the exception; it may be absent
+            # when the error is constructed manually (e.g. in tests).
+            response = getattr(error, "response", None)
+            if response is not None:
+                code = response.status_code
+                return f"HTTP {code} {response.reason or str(code)}"
+            return str(error) or "HTTP error (no response details available)"
+        if isinstance(error, requests_lib.exceptions.Timeout):
+            return "Connection timed out while fetching spec"
+        if isinstance(error, requests_lib.exceptions.ConnectionError):
             return f"Connection failed: {error}"
     return str(error)
 
@@ -119,7 +136,8 @@ class SwaggerParser:
 
         Raises:
             FileNotFoundError: If local file doesn't exist
-            httpx.HTTPError: If URL fetch fails
+            httpx.HTTPStatusError: If URL fetch fails (when httpx is installed)
+            requests.exceptions.HTTPError: If URL fetch fails (when requests is used)
             ValueError: If specification format is invalid
         """
         source_str = str(source)
@@ -139,20 +157,30 @@ class SwaggerParser:
         Returns:
             SwaggerSpec: Parsed specification
         """
-        if httpx is None:
-            raise ImportError("httpx is required to fetch remote specs. Install it: pip install httpx")
-        with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
-            response = client.get(url)
+        # Priority: httpx (preferred) → requests (fallback) → error if neither is installed.
+        if httpx is not None:
+            with httpx.Client(timeout=cls.REQUEST_TIMEOUT) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                # Detect YAML by content-type header or file extension; default to JSON.
+                if "yaml" in content_type or url.endswith((".yaml", ".yml")):
+                    data = yaml.safe_load(response.text)
+                else:
+                    data = response.json()
+        elif requests_lib is not None:
+            response = requests_lib.get(url, timeout=cls.REQUEST_TIMEOUT)
             response.raise_for_status()
-
             content_type = response.headers.get("content-type", "")
-
-            # Determine format from content-type or URL extension
             if "yaml" in content_type or url.endswith((".yaml", ".yml")):
                 data = yaml.safe_load(response.text)
             else:
                 data = response.json()
-
+        else:
+            raise ImportError(
+                "A HTTP client is required to fetch remote specs. "
+                "Install one: pip install httpx  or  pip install requests"
+            )
         return cls._parse_spec(data, source)
 
     @classmethod
@@ -208,6 +236,7 @@ class SwaggerParser:
             if not isinstance(path_item, dict):
                 continue
             for method, operation in path_item.items():
+                # path_item may contain non-method keys like "parameters" or "$ref" — skip them
                 if method.lower() not in cls.HTTP_METHODS:
                     continue
                 if not isinstance(operation, dict):
@@ -262,6 +291,7 @@ class SwaggerParser:
             if not isinstance(path_item, dict):
                 continue
             for method, operation in path_item.items():
+                # skip non-method keys such as "parameters", "summary", "$ref"
                 if method.lower() not in cls.HTTP_METHODS:
                     continue
                 if not isinstance(operation, dict):
@@ -316,6 +346,8 @@ class SwaggerParser:
             tags=operation.get("tags", []),
             parameters=parameters,
             responses=responses,
+            # Swagger 2.0 allows consumes/produces at the spec level as a global default;
+            # operation-level values take priority when present.
             consumes=operation.get("consumes", spec_data.get("consumes", [])),
             produces=operation.get("produces", spec_data.get("produces", [])),
         )
@@ -336,7 +368,9 @@ class SwaggerParser:
                 )
             )
 
-        # Handle requestBody (OpenAPI 3.x)
+        # OpenAPI 3.x replaces Swagger 2.0 "body" parameter with a requestBody object.
+        # We expose it as a single synthetic parameter named "body" so the rest of the
+        # pipeline can treat both spec versions uniformly.
         request_body = operation.get("requestBody", {})
         if request_body and isinstance(request_body, dict):
             content = request_body.get("content", {})
@@ -350,7 +384,7 @@ class SwaggerParser:
                             schema=media_type.get("schema"),
                         )
                     )
-                break  # Only add first content type
+                break  # schema is identical across content types; only one entry needed
 
         responses = []
         for code, response in operation.get("responses", {}).items():

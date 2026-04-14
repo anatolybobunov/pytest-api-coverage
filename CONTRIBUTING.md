@@ -62,17 +62,25 @@ This project uses:
 
 ## Submitting Changes
 
+### Git Workflow
+
+This project follows a `feature → dev → main` branching model:
+
+- **`main`** — stable release branch. Do not open PRs directly to `main` unless explicitly asked by maintainers.
+- **`dev`** — integration branch for all new work. Open your PRs here.
+- **`feature/*`** — your feature branches, created from `dev`.
+
 ### Pull Request Process
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
+2. Create a feature branch (`git checkout -b {feat/fix/docs/refactor/test}/{branch name} dev`)
 3. Make your changes
 4. Run tests and linting
 5. Commit your changes with a descriptive message
 6. Push to your fork
-7. Open a Pull Request
+7. Open a Pull Request **targeting the `dev` branch**
 
-### Commit Messages
+### Commit Messages and PR Titles
 
 Use clear, descriptive commit messages:
 
@@ -81,6 +89,22 @@ Use clear, descriptive commit messages:
 - `docs: update documentation`
 - `refactor: improve code structure`
 - `test: add tests for X`
+
+**PR titles must also follow this format** — CI validates them automatically on every PR.
+
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+Use `!` to indicate a breaking change: `feat!: redesign config format`
+
+### Versioning
+
+Version bumping is fully automated. When changes are merged into `main`, CI automatically determines the version bump type from the commit history:
+
+- `fix:`, `docs:`, `refactor:`, etc. → **minor** version bump                                                                                                                                       
+- `feat:` → **patch** version bump                                                                                                                                                                  
+- `feat!:` or `BREAKING CHANGE` → **major** version bump 
+
+**Do not manually change version numbers** in `pyproject.toml` or any other files.
 
 ## Project Structure
 
