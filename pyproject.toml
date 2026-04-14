@@ -64,7 +64,9 @@ dev = [
 api_coverage = "pytest_api_coverage.plugin"
 
 [tool.pytest.ini_options]
-addopts = "-p pytester"
+addopts = "-p pytester --import-mode=importlib"
+pythonpath = ["tests/unit"]
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pytest_api_coverage"]
