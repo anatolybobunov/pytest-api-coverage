@@ -3,7 +3,7 @@
 There are two ways to configure pytest-api-coverage. For single-spec projects, pass CLI
 flags directly on the command line or persist them via `addopts` in your pytest config
 file. For projects with multiple APIs, use a YAML or JSON config file that declares each
-spec as a named entry; the plugin discovers this file automatically at the project root.
+spec as a named entry and pass it with `--coverage-config=path/to/config.yaml`.
 
 ## Persisting CLI Options (addopts)
 
@@ -140,10 +140,9 @@ A request to `http://symboldb.test.zorg.sh/symboldb/users` is matched against `G
 The plugin only activates when at least one of the following is provided:
 
 - `--coverage-spec` flag
-- `--coverage-config` flag
-- A `coverage-config.yaml` / `coverage-config.yml` / `coverage-config.json` file at the project root
+- `--coverage-config` flag (with path to the config file)
 
-If none of these are present, the plugin silently disables itself and does not affect the test run.
+If neither is present, the plugin silently disables itself and does not affect the test run. **Note:** The plugin does not auto-discover config files — you must pass `--coverage-config=path/to/config.yaml` explicitly.
 
 ## See Also
 

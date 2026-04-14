@@ -40,12 +40,11 @@ See [Installation Guide](docs/installation.md) for details.
 ### 1. Using a Config File
 
 ```bash
-pytest tests/ --coverage-config={path to coverage-config.yaml}
+pytest tests/ --coverage-config=coverage-config.yaml
 ```
 
-This is the easiest way to run code coverage analysis if you already have settings in your configuration file. 
-Read more about the [configuration file](docs/configuration.md#multi-spec-configuration-file)
-The plugin reads the path to the OpenAPI specification, report parameters, and other settings from your `coverage-config.yaml` file. 
+Use this approach when you have multiple APIs or want to centralize settings in a config file. The plugin reads the OpenAPI specification paths, report formats, and other settings from your `coverage-config.yaml` file. 
+See [Configuration Reference](docs/configuration.md#multi-spec-configuration-file) for the config file format.
 This approach is recommended for continuous integration environments, since all settings are stored in your repository.
 
 ### 2. Testing with Remote Spec URL and Origin Filter
@@ -53,18 +52,18 @@ This approach is recommended for continuous integration environments, since all 
 ```bash
 pytest tests/ \
   --coverage-spec={http or https url to the spec without auth} \
-  --coverage-origin-filter={part of url to filter}
+  --coverage-url-filter={part of url to filter}
 ```
 
 Use this approach when you want to load the OpenAPI spec from a remote server and only capture requests that match a specific base URL. 
-The `--coverage-origin-filter` parameter helps you focus on one API when your tests make requests to multiple endpoints. 
+The `--coverage-url-filter` parameter helps you focus on one API when your tests make requests to multiple endpoints. 
 This is useful in microservices environments where your tests talk to different services.
 Note: The plugin cannot download the OpenAPI specification if the endpoint requires authentication.
 
 ### 3. Running with Config File and Parallel Tests
 
 ```bash
-pytest tests/ -n 4 --coverage-config=pytest.ini
+pytest tests/ -n 4 --coverage-config=coverage-config.yaml
 ```
 
 This command runs your tests in parallel across 4 workers while measuring API coverage. The parallel execution with `pytest-xdist` makes your test suite faster without losing coverage insights. The plugin automatically coordinates between workers and combines results into a single report. Perfect for large test suites where speed matters.

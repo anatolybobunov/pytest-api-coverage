@@ -58,7 +58,7 @@ This is the correct behaviour when testing API contracts.
 ## xdist: coverage lower than expected
 
 If workers terminated with an error, their data is lost.
-Check for warnings like `"Worker gw0 finished without coverage_data"` in the pytest output.
+Check for warnings like `"Worker gw0 finished without coverage_data — coverage may be incomplete"` in the pytest output.
 
 ### `--coverage-url-filter` has no effect
 
@@ -69,11 +69,13 @@ Check for warnings like `"Worker gw0 finished without coverage_data"` in the pyt
 **Fix:** Always combine with `--coverage-spec`. The filter value is a substring matched against the full request URL (case-insensitive):
 
 ```bash
-# Match by full origin (http or https)
 pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
+```
 
-# Match by partial hostname (matches both http and https)
-pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
+You can specify the filter multiple times to match different origins:
+
+```bash
+pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com --coverage-url-filter=api.other.com
 ```
 
 ### HTTP requests not captured, no error shown
@@ -88,7 +90,7 @@ pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
 python -c "import requests, httpx; print('OK')"
 ```
 
-Also ensure your tests are not using mocking libraries that intercept at the socket level (e.g., `responses`, `pytest-httpx`) — see the note in [Usage Guide](usage.md).
+Also ensure your tests are not using mocking libraries that are incompatible with pytest-api-coverage. See the "0 HTTP requests captured" section above for a list of compatible and incompatible libraries.
 
 ## See Also
 
