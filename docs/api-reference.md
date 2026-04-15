@@ -146,7 +146,7 @@ Coverage data for a URL path, grouping all HTTP methods observed on that path.
 
 Thread-safe collector for HTTP coverage data. This is the central object that the plugin creates and uses to accumulate `HTTPInteraction` records during a test session.
 
-The implementation uses a `Queue` for lock-free writes from multiple threads, and a `Lock` for safe reads. It works correctly in single-threaded pytest, multi-threaded test execution, and pytest-xdist worker processes.
+The implementation uses a `Queue` for lock-free writes from multiple threads. A `Lock` is held during queue drain and data access to ensure consistency. It works correctly in single-threaded pytest, multi-threaded test execution, and pytest-xdist worker processes.
 
 **Constructor:**
 
@@ -163,7 +163,7 @@ Takes no arguments.
 | `set_current_test` | `(test_name: str \| None) -> None` | Stores the active test name in a `ContextVar` for automatic attribution. Called by the plugin's pytest hooks. |
 | `record` | `(interaction: HTTPInteraction) -> None` | Records an `HTTPInteraction`. If `interaction.test_name` is `None`, the current test name from the `ContextVar` is applied before queuing. |
 | `has_data` | `() -> bool` | Returns `True` if at least one interaction has been recorded. |
-| `get_data` | `() -> list[dict[str, Any]]` | Drains the queue and returns all collected interactions as serializable dicts. |
+| `get_data` | `() -> list[dict[str, Any]]` | Drains the internal queue into the data buffer and returns all collected interactions as serializable dicts. The data buffer is not cleared — call `clear()` to reset it. |
 | `clear` | `() -> None` | Drains the queue and discards all collected data. |
 | `record_error` | `() -> None` | Increments the internal error counter. Called when an interceptor fails to record an interaction. |
 
@@ -193,6 +193,39 @@ The plugin ships adapters that implement this protocol for `httpx` and `requests
 from pytest_api_coverage import HTTPInterceptor
 
 assert isinstance(my_adapter, HTTPInterceptor)
+```
+
+**Example — recording a custom interaction:**
+
+```python
+from pytest_api_coverage.models import HTTPRequest, HTTPResponse, HTTPInteraction
+from pytest_api_coverage.collector import CoverageCollector
+
+collector = CoverageCollector()
+
+# Build request and response objects.
+# HTTPRequest requires method, url, path, and host.
+request = HTTPRequest(
+    method="GET",
+    url="https://api.example.com/users",
+    path="/users",
+    host="api.example.com",
+    headers={"Authorization": "Bearer token"},
+)
+response = HTTPResponse(status_code=200, headers={"Content-Type": "application/json"})
+
+# Create the interaction. test_name is optional — if omitted,
+# the collector fills it from the current test context automatically.
+interaction = HTTPInteraction(
+    request=request,
+    response=response,
+    test_name="test_get_users",
+)
+
+collector.record(interaction)
+
+# Retrieve recorded data as serializable dicts.
+data = collector.get_data()
 ```
 
 If you need to build a custom report from the structured model types rather than raw dicts, use `get_data()` to retrieve the serialized interactions and reconstruct them, or access `_data` directly (internal, unsupported) after calling `_drain_queue()`.

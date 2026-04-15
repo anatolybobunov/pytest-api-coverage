@@ -82,11 +82,7 @@ After installation, verify the plugin is available:
 pytest --help | grep coverage-spec
 ```
 
-You should see:
-
-```
---coverage-spec=COVERAGE_SPEC  #  Path or URL to OpenAPI/Swagger spec
-```
+You should see a help line containing `coverage-spec` with the description of the flag. The exact format may vary depending on your terminal width and pytest version.
 
 ## Optional: pytest-xdist
 

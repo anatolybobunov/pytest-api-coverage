@@ -51,14 +51,14 @@ Possible causes:
 
 ## Conflict with pytest-httpx or responses
 
-pytest-api-coverage patches `httpx.Client.request` at the method level.
+pytest-api-coverage patches both `httpx.Client.request` and `httpx.AsyncClient.request` at the method level.
 `pytest-httpx` uses httpx's transport mechanism — no conflict, but requests will be recorded as mocked.
 This is the correct behaviour when testing API contracts.
 
 ## xdist: coverage lower than expected
 
 If workers terminated with an error, their data is lost.
-Check for warnings like `"Worker gw0 finished without coverage_data"` in the pytest output.
+Check for warnings like `"Worker gw0 finished without coverage_data — coverage may be incomplete"` in the pytest output.
 
 ### `--coverage-url-filter` has no effect
 
@@ -69,11 +69,13 @@ Check for warnings like `"Worker gw0 finished without coverage_data"` in the pyt
 **Fix:** Always combine with `--coverage-spec`. The filter value is a substring matched against the full request URL (case-insensitive):
 
 ```bash
-# Match by full origin (http or https)
 pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
+```
 
-# Match by partial hostname (matches both http and https)
-pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
+You can specify the filter multiple times to match different origins:
+
+```bash
+pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com --coverage-url-filter=api.other.com
 ```
 
 ### HTTP requests not captured, no error shown
@@ -88,7 +90,31 @@ pytest --coverage-spec=openapi.yaml --coverage-url-filter=api.example.com
 python -c "import requests, httpx; print('OK')"
 ```
 
-Also ensure your tests are not using mocking libraries that intercept at the socket level (e.g., `responses`, `pytest-httpx`) — see the note in [Usage Guide](usage.md).
+Also ensure your tests are not using mocking libraries that are incompatible with pytest-api-coverage. See the "0 HTTP requests captured" section above for a list of compatible and incompatible libraries.
+
+## Spec URL request not in coverage data
+
+**Symptom:** You load the spec from a URL (`--coverage-spec=https://...`), but the HTTP request to fetch the spec does not appear in coverage data.
+
+**Cause:** This is intentional. The plugin loads the spec before HTTP interception is set up. The fetch happens in `pytest_sessionstart`, before any adapters are installed. This means the request to download the spec is never recorded.
+
+**No action needed.** Coverage data only includes requests made by your tests, not internal plugin requests.
+
+## Config file not found
+
+**Symptom:** `ERROR: [api-coverage] Config file not found: <path>`
+
+**Cause:** The `--coverage-config` option points to a file that does not exist on disk.
+
+**Fix:** Check the file path. Make sure the path is correct and relative to the directory where pytest is run (usually the project root):
+
+```bash
+# Verify the file exists
+ls -la path/to/your/config.yaml
+
+# Run with the correct path
+pytest --coverage-config=path/to/your/config.yaml
+```
 
 ## See Also
 

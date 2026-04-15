@@ -129,6 +129,23 @@ payments-api    3/5 endpoints    60.0%   60 req    payments-api-coverage.html
 TOTAL          15/20 endpoints   75.0%   150 req   0 unmatched
 ```
 
+#### Split-by-Origin Output
+
+When `--coverage-split-by-origin` is used, the terminal summary shows combined totals followed by per-origin breakdowns:
+
+```
+========================= API Coverage Summary =========================
+Combined: 15/20 covered (75.0%)
+Total HTTP requests: 150
+Origins: 2
+
+  https://api1.example.com:
+    12/20 covered (60.0%), 90 requests
+
+  https://api2.example.com:
+    8/20 covered (40.0%), 60 requests
+```
+
 ## Interpreting Results
 
 ### Coverage Percentage
@@ -171,15 +188,23 @@ Once unmatched requests are near zero:
 
 ### HTML Report Color Coding
 
-Each row in the HTML endpoint table is color-coded by coverage state:
+Each path row in the HTML endpoint table is color-coded by coverage state:
 
-| Row color | Badge label | Meaning |
+| Row color | Status | Meaning |
 |---|---|---|
-| Green background | **Covered** | Method hit more than once (`hit_count > 1`) |
-| Gray background | **Once** | Method hit exactly once (`hit_count == 1`) |
-| Red background | **Not Covered** | Method never hit (`hit_count == 0`) |
+| Green background | **Covered** | All HTTP methods for this path are covered (each method hit at least once) |
+| Yellow/Amber background | **Partial** | Some methods for this path are covered, but not all |
+| Red background | **Not Covered** | No methods for this path have been hit |
 
-"Once" (gray) is distinct from "Covered" (green) to highlight methods that have only a single test path through them. A single hit means there is no redundancy and likely no negative-path testing for that endpoint.
+The table also displays per-method badges:
+
+| Badge | Meaning |
+|---|---|
+| Green **Covered** | Method hit more than once (`hit_count > 1`) |
+| Gray **Once** | Method hit exactly once (`hit_count == 1`) |
+| Red **Not Covered** | Method never hit (`hit_count == 0`) |
+
+The per-method "Once" badge highlights methods with only a single test path through them. A single hit means there is no redundancy and likely no negative-path testing for that method.
 
 The coverage progress bar at the top of the report also changes color: red below 50%, amber/yellow from 50% to 79%, and green at 80% or above.
 

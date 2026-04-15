@@ -37,16 +37,65 @@ See [Installation Guide](docs/installation.md) for details.
 
 ## Quick Start
 
+> **Note:** The plugin does not activate by default. You must pass `--coverage-spec` or `--coverage-config` to enable it. Without these flags, pytest runs normally with no coverage overhead.
+
+### 1. Single Spec (local file)
+
 ```bash
-# Basic usage with local spec file
-pytest tests/ --coverage-spec=swagger.json
-
-# Using remote spec URL
-pytest tests/ --coverage-spec=https://api.example.com/swagger.json
-
-# With parallel execution
-pytest tests/ -n 4 --coverage-spec=swagger.json
+pytest tests/ --coverage-spec=api/swagger.yaml
 ```
+
+The simplest way to start. Point the plugin at your local OpenAPI spec file (JSON or YAML). The plugin will intercept all HTTP requests made during tests and compare them against the spec.
+
+### 2. Config File (one or many specs)
+
+Create a config file `coverage-config.yaml`:
+
+```yaml
+specs:
+  - name: users-api
+    swagger_url: https://api.example.com/swagger.json
+    api_filters:
+      - https://api.example.com
+```
+
+Then run:
+
+```bash
+pytest tests/ --coverage-config=coverage-config.yaml
+```
+
+Use this approach when you have multiple APIs or want to store all settings in one file. The config file defines which specs to load, which URLs to track, and where to save reports.
+
+The `--coverage-spec-name` flag is optional. Use it to run only one spec from the config:
+
+```bash
+pytest tests/ --coverage-config=coverage-config.yaml --coverage-spec-name=users-api
+```
+
+The `api_filters` field in the config file tells the plugin which HTTP requests belong to each spec. This is required in the config file. When using `--coverage-spec` without a config file, you can pass `--coverage-url-filter` on the CLI instead.
+
+See [Configuration Reference](docs/configuration.md#multi-spec-configuration-file) for the full config file format.
+
+### 3. Parallel Test Execution
+
+```bash
+pytest tests/ -n 4 --coverage-config=coverage-config.yaml
+```
+
+This runs tests in parallel across 4 workers while measuring API coverage. Requires [pytest-xdist](https://pypi.org/project/pytest-xdist/). The plugin coordinates between workers and combines results into a single report.
+
+### Example Terminal Output
+
+After the test run finishes, the plugin prints a summary to the terminal:
+
+```
+======================== API Coverage Summary (1 specs) ========================
+users-api   12/20 endpoints   60.0%   45 req   users-api-coverage.html
+TOTAL        12/20 endpoints   60.0%   45 req   3 unmatched
+```
+
+For detailed setup instructions, see [Installation](docs/installation.md). For all available options, see [Usage Guide](docs/usage.md).
 
 ## Documentation
 

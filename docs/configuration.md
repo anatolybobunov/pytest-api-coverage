@@ -3,7 +3,7 @@
 There are two ways to configure pytest-api-coverage. For single-spec projects, pass CLI
 flags directly on the command line or persist them via `addopts` in your pytest config
 file. For projects with multiple APIs, use a YAML or JSON config file that declares each
-spec as a named entry; the plugin discovers this file automatically at the project root.
+spec as a named entry and pass it with `--coverage-config=path/to/config.yaml`.
 
 ## Persisting CLI Options (addopts)
 
@@ -40,11 +40,11 @@ specs:
   - name: users-api
     swagger_path: docs/users.yaml
     api_filters:
-      - http://localhost:8001
+      - users-
   - name: payments-api
     swagger_url: https://payments.internal/openapi.json
     api_filters:
-      - http://localhost:8002
+      - payments
 ```
 
 The file can also be written as JSON (`coverage-config.json`) with the same structure. Both `.yaml` and `.yml` extensions are supported.
@@ -61,6 +61,8 @@ The file can also be written as JSON (`coverage-config.json`) with the same stru
 
 **Per-spec keys (each entry under `specs`):**
 
+> **Note:** These keys apply only to entries in the `specs` list of the config file. In CLI single-spec mode, use `--coverage-url-filter` instead of `api_filters`.
+
 | Key | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Unique identifier for this spec; used in output filenames and terminal summary |
@@ -74,8 +76,10 @@ missing `name`, `api_filters`, or that supply both `swagger_path` and `swagger_u
 skipped with a warning and do not abort the run.
 
 **Important:** Only `output_dir`, `formats`, and `specs` are honoured at the top level of
-the config file. Options such as `--coverage-strip-prefix` and `--coverage-split-by-origin`
-have no config file equivalent — use `addopts` to persist those.
+the config file. The global `--coverage-strip-prefix` CLI flag has no top-level config
+equivalent. For multi-spec setups, use the per-spec `strip_prefixes` key inside each spec
+entry. `--coverage-split-by-origin` has no config file equivalent at all — use `addopts` to
+persist it.
 
 **Specifying a config path explicitly:**
 
@@ -89,8 +93,8 @@ pytest --coverage-config=path/to/config.yaml
 
 | Scenario | What `--coverage-spec-name` does |
 |---|---|
-| Used with `--coverage-spec` | Labels the spec; the name appears in the output filename and terminal summary. `--coverage-url-filter` is required to filter which requests are attributed to it. |
-| Used with `--coverage-config` | Filters the config file to run only the spec whose `name` matches; all other specs are ignored. `--coverage-url-filter` is ignored (a warning is emitted). |
+| Used with `--coverage-spec` | Labels the spec; the name appears in the output filename and terminal summary. `--coverage-url-filter` is **required** — omitting it raises a `UsageError`. |
+| Used with `--coverage-config` | Filters the config file to run only the spec whose `name` matches; all other specs are ignored. `--coverage-url-filter` is not needed — each spec's `api_filters` in the config file serves that purpose. If `--coverage-url-filter` is passed anyway, it is ignored and a warning is emitted. |
 | Used alone (no `--coverage-spec` and no config file) | Error: `--coverage-spec-name requires --coverage-spec` |
 
 **Labelling a single spec via CLI:**
@@ -121,29 +125,28 @@ When multiple specs share a domain but differ by path prefix, set the full URL (
 ```yaml
 specs:
   - name: symboldb
-    swagger_url: http://symboldb.test.zorg.sh/symboldb/api-docs.yaml
+    swagger_url: https://shared-domain.com/symboldb/swagger.json
     api_filters:
-      - http://symboldb.test.zorg.sh/symboldb
+      - https://shared-domain.com/symboldb
     # /symboldb is auto-stripped from request paths before spec matching
 
   - name: symboldb-editor
-    swagger_url: http://symboldb.test.zorg.sh/symboldb-editor/api-docs.yaml
+    swagger_url: https://shared-domain.com/symboldb-editor/swagger.json
     api_filters:
-      - http://symboldb.test.zorg.sh/symboldb-editor
+      - https://shared-domain.com/symboldb-editor
     # /symboldb-editor is auto-stripped automatically
 ```
 
-A request to `http://symboldb.test.zorg.sh/symboldb/users` is matched against `GET /users` in the `symboldb` spec.
+A request to `https://shared-domain.com/symboldb/users` is matched against `GET /users` in the `symboldb` spec.
 
 ## Plugin Activation
 
 The plugin only activates when at least one of the following is provided:
 
 - `--coverage-spec` flag
-- `--coverage-config` flag
-- A `coverage-config.yaml` / `coverage-config.yml` / `coverage-config.json` file at the project root
+- `--coverage-config` flag (with path to the config file)
 
-If none of these are present, the plugin silently disables itself and does not affect the test run.
+If neither is present, the plugin silently disables itself and does not affect the test run. **Note:** The plugin does not auto-discover config files — you must pass `--coverage-config=path/to/config.yaml` explicitly.
 
 ## See Also
 

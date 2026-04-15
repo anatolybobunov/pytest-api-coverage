@@ -47,6 +47,8 @@ src/pytest_api_coverage/
 ├── reporter.py         # Coverage matching and reporting
 ├── orchestrator.py     # MultiSpecOrchestrator — multi-spec routing
 ├── models.py           # Data models
+├── terminal.py         # Terminal output (summary printing)
+├── utils.py            # URL matching and normalization helpers
 ├── adapters/
 │   ├── __init__.py
 │   ├── base.py               # HttpAdapterProtocol interface
@@ -76,8 +78,13 @@ Entry point for pytest integration. Implements pytest hooks:
 - `pytest_configure` - initializes plugin based on execution mode
 - `pytest_sessionstart` - sets up HTTP interception
 - `pytest_runtest_setup/teardown` - tracks current test name
+- `pytest_runtest_protocol` - safety net to clear current test after each test
 - `pytest_sessionfinish` - generates reports
 - `pytest_terminal_summary` - prints coverage summary
+
+Two mixins provide shared logic:
+- `_InterceptionMixin` — shared HTTP interception logic (used by Single and Worker plugins)
+- `_SwaggerLoadMixin` — shared swagger loading logic (used by Single and Master plugins)
 
 Three plugin classes handle different execution modes:
 - `CoverageSinglePlugin` - single process execution
@@ -101,9 +108,9 @@ Both adapters:
 - Call collector with request/response data
 - Are thread-safe
 
-### Collector (`collector.py`)
+### Models (`models.py`)
 
-Thread-safe storage for HTTP interactions.
+Data models for HTTP interaction tracking.
 
 ```python
 @dataclass(frozen=True)
@@ -112,15 +119,15 @@ class HTTPRequest:
     url: str
     path: str
     host: str
-    headers: dict
-    query_params: dict
-    body: bytes | None
+    headers: dict[str, str]
+    query_params: dict[str, Any]
+    body: Any | None
     content_type: str | None
 
 @dataclass(frozen=True)
 class HTTPResponse:
     status_code: int
-    headers: dict
+    headers: dict[str, str]
     content_type: str | None
     body_size: int
 
@@ -132,6 +139,10 @@ class HTTPInteraction:
     duration_ms: float
     test_name: str | None
 ```
+
+### Collector (`collector.py`)
+
+Thread-safe storage for HTTP interactions.
 
 Features:
 - Thread-safe via `threading.Lock`
@@ -152,33 +163,47 @@ OpenAPI specification parsing.
 
 ```python
 @dataclass
+class SwaggerParameter:
+    name: str
+    location: str        # "path", "query", "header", "body", "formData"
+    required: bool = False
+    param_type: str | None = None   # "string", "integer", etc.
+    schema: dict[str, Any] | None = None
+
+@dataclass
+class SwaggerResponse:
+    status_code: int
+    description: str = ""
+    schema: dict[str, Any] | None = None
+
+@dataclass
 class SwaggerEndpoint:
     method: str          # GET, POST, etc.
     path: str            # /users/{id}
-    operation_id: str | None
-    summary: str | None
-    description: str | None
+    operation_id: str | None = None
+    summary: str | None = None
+    description: str | None = None
     tags: list[str]
-    parameters: list[dict]
-    responses: dict
+    parameters: list[SwaggerParameter]
+    responses: list[SwaggerResponse]
     consumes: list[str]
     produces: list[str]
 
 @dataclass
 class SwaggerSpec:
-    endpoints: list[SwaggerEndpoint]
-    base_path: str       # "" by default
-    source: str          # file path or URL
-    title: str | None
-    version: str | None
-    host: str | None
+    title: str           # defaults to "Unknown API"
+    version: str         # defaults to "0.0.0"
+    base_path: str = ""
+    host: str = ""
     schemes: list[str]
-    server_urls: list[str]
+    endpoints: list[SwaggerEndpoint]
+    server_urls: list[str]   # OpenAPI 3.x servers
+    source: str = ""         # file path or URL
 ```
 
 ### Reporter (`reporter.py`)
 
-Core coverage logic.
+Core coverage logic. `CoverageReporter.__init__` accepts `base_url: str | None` for single-origin filtering.
 
 **Path Pattern Matching**:
 - Converts OpenAPI paths to regex: `/users/{id}` → `/users/([^/]+)`
@@ -210,7 +235,7 @@ class PathCoverage:
 
 **Settings** (`settings.py`):
 - `CoverageSettings` — top-level CLI config
-- `SpecConfig` — per-spec config with `name`, `urls`, `path`, `url` fields
+- `SpecConfig` — per-spec config with fields: `name: str`, `api_filters: list[str]`, `swagger_path: str | Path | None`, `swagger_url: str | None`, `strip_prefixes: list[str]`
 
 **MultiSpec loader** (`multi_spec.py`):
 - `load_multi_spec_config(path)` — parses YAML/JSON config file
