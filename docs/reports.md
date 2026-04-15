@@ -129,6 +129,23 @@ payments-api    3/5 endpoints    60.0%   60 req    payments-api-coverage.html
 TOTAL          15/20 endpoints   75.0%   150 req   0 unmatched
 ```
 
+#### Split-by-Origin Output
+
+When `--coverage-split-by-origin` is used, the terminal summary shows combined totals followed by per-origin breakdowns:
+
+```
+========================= API Coverage Summary =========================
+Combined: 15/20 covered (75.0%)
+Total HTTP requests: 150
+Origins: 2
+
+  https://api1.example.com:
+    12/20 covered (60.0%), 90 requests
+
+  https://api2.example.com:
+    8/20 covered (40.0%), 60 requests
+```
+
 ## Interpreting Results
 
 ### Coverage Percentage
@@ -184,7 +201,7 @@ The table also displays per-method badges:
 | Badge | Meaning |
 |---|---|
 | Green **Covered** | Method hit more than once (`hit_count > 1`) |
-| Yellow/Amber **Once** | Method hit exactly once (`hit_count == 1`) |
+| Gray **Once** | Method hit exactly once (`hit_count == 1`) |
 | Red **Not Covered** | Method never hit (`hit_count == 0`) |
 
 The per-method "Once" badge highlights methods with only a single test path through them. A single hit means there is no redundancy and likely no negative-path testing for that method.

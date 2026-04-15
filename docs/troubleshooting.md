@@ -51,7 +51,7 @@ Possible causes:
 
 ## Conflict with pytest-httpx or responses
 
-pytest-api-coverage patches `httpx.Client.request` at the method level.
+pytest-api-coverage patches both `httpx.Client.request` and `httpx.AsyncClient.request` at the method level.
 `pytest-httpx` uses httpx's transport mechanism — no conflict, but requests will be recorded as mocked.
 This is the correct behaviour when testing API contracts.
 
@@ -91,6 +91,30 @@ python -c "import requests, httpx; print('OK')"
 ```
 
 Also ensure your tests are not using mocking libraries that are incompatible with pytest-api-coverage. See the "0 HTTP requests captured" section above for a list of compatible and incompatible libraries.
+
+## Spec URL request not in coverage data
+
+**Symptom:** You load the spec from a URL (`--coverage-spec=https://...`), but the HTTP request to fetch the spec does not appear in coverage data.
+
+**Cause:** This is intentional. The plugin loads the spec before HTTP interception is set up. The fetch happens in `pytest_sessionstart`, before any adapters are installed. This means the request to download the spec is never recorded.
+
+**No action needed.** Coverage data only includes requests made by your tests, not internal plugin requests.
+
+## Config file not found
+
+**Symptom:** `ERROR: [api-coverage] Config file not found: <path>`
+
+**Cause:** The `--coverage-config` option points to a file that does not exist on disk.
+
+**Fix:** Check the file path. Make sure the path is correct and relative to the directory where pytest is run (usually the project root):
+
+```bash
+# Verify the file exists
+ls -la path/to/your/config.yaml
+
+# Run with the correct path
+pytest --coverage-config=path/to/your/config.yaml
+```
 
 ## See Also
 
