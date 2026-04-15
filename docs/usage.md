@@ -20,7 +20,7 @@
 ### Basic Coverage
 
 ```bash
-pytest tests/ --coverage-spec={path or url to the swagger.json}
+pytest tests/ --coverage-spec={path or url to the swagger.json} --coverage-spec-name={spec name from config}
 ```
 
 Generates reports in `api-coverage-report/` directory.

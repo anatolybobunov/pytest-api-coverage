@@ -40,7 +40,7 @@ See [Installation Guide](docs/installation.md) for details.
 ### 1. Using a Config File
 
 ```bash
-pytest tests/ --coverage-config=coverage-config.yaml
+pytest tests/ --coverage-config=coverage-config.yaml --coverage-spec-name={spec name from config}
 ```
 
 Use this approach when you have multiple APIs or want to centralize settings in a config file. The plugin reads the OpenAPI specification paths, report formats, and other settings from your `coverage-config.yaml` file. 
